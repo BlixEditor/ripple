@@ -156,10 +156,11 @@ const nodes = {
 
         nodeBuilder.define(async (input, uiInput, from) => {
             const { startFlow, tickFlow, endFlow } = input;
-            return { program: `
-const onStart = () => { ${startFlow} };
-const onTick  = () => { ${tickFlow} };
-const onEnd   = () => { ${endFlow} };`
+            return {
+                program:
+                    (startFlow == null ? "" : `const onStart = () => { ${startFlow} };`) +
+                    (tickFlow == null ? "" :  `const onTick  = () => { ${tickFlow} };`) +
+                    (endFlow == null ? "" :   `const onEnd   = () => { ${endFlow} };`)
             };
         });
 

@@ -56587,7 +56587,7 @@ var app = (function (exports) {
 		return child_ctx;
 	}
 
-	// (28:4) <Canvas>
+	// (21:4) <Canvas>
 	function create_default_slot(ctx) {
 		let scene;
 		let current;
@@ -56619,14 +56619,69 @@ var app = (function (exports) {
 			block,
 			id: create_default_slot.name,
 			type: "slot",
-			source: "(28:4) <Canvas>",
+			source: "(21:4) <Canvas>",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (35:9) {#each logData as str}
+	// (20:4) {#key $media}
+	function create_key_block(ctx) {
+		let canvas;
+		let current;
+
+		canvas = new Canvas({
+				props: {
+					$$slots: { default: [create_default_slot] },
+					$$scope: { ctx }
+				},
+				$$inline: true
+			});
+
+		const block = {
+			c: function create() {
+				create_component(canvas.$$.fragment);
+			},
+			m: function mount(target, anchor) {
+				mount_component(canvas, target, anchor);
+				current = true;
+			},
+			p: function update(ctx, dirty) {
+				const canvas_changes = {};
+
+				if (dirty & /*$$scope*/ 64) {
+					canvas_changes.$$scope = { dirty, ctx };
+				}
+
+				canvas.$set(canvas_changes);
+			},
+			i: function intro(local) {
+				if (current) return;
+				transition_in(canvas.$$.fragment, local);
+				current = true;
+			},
+			o: function outro(local) {
+				transition_out(canvas.$$.fragment, local);
+				current = false;
+			},
+			d: function destroy(detaching) {
+				destroy_component(canvas, detaching);
+			}
+		};
+
+		dispatch_dev("SvelteRegisterBlock", {
+			block,
+			id: create_key_block.name,
+			type: "key",
+			source: "(20:4) {#key $media}",
+			ctx
+		});
+
+		return block;
+	}
+
+	// (29:9) {#each logData as str}
 	function create_each_block(ctx) {
 		let t0_value = /*str*/ ctx[3] + "";
 		let t0;
@@ -56638,7 +56693,7 @@ var app = (function (exports) {
 				t0 = text(t0_value);
 				t1 = space();
 				br = element("br");
-				add_location(br, file, 34, 38, 609);
+				add_location(br, file, 36, 38, 576);
 			},
 			m: function mount(target, anchor) {
 				insert_dev(target, t0, anchor);
@@ -56661,7 +56716,7 @@ var app = (function (exports) {
 			block,
 			id: create_each_block.name,
 			type: "each",
-			source: "(35:9) {#each logData as str}",
+			source: "(29:9) {#each logData as str}",
 			ctx
 		});
 
@@ -56670,7 +56725,7 @@ var app = (function (exports) {
 
 	function create_fragment(ctx) {
 		let div;
-		let canvas;
+		let previous_key = /*$media*/ ctx[1];
 		let t0;
 		let code;
 		let t1;
@@ -56678,15 +56733,7 @@ var app = (function (exports) {
 		let t2;
 		let t3;
 		let current;
-
-		canvas = new Canvas({
-				props: {
-					$$slots: { default: [create_default_slot] },
-					$$scope: { ctx }
-				},
-				$$inline: true
-			});
-
+		let key_block = create_key_block(ctx);
 		let each_value = ensure_array_like_dev(/*logData*/ ctx[2]);
 		let each_blocks = [];
 
@@ -56697,7 +56744,7 @@ var app = (function (exports) {
 		const block = {
 			c: function create() {
 				div = element("div");
-				create_component(canvas.$$.fragment);
+				key_block.c();
 				t0 = space();
 				code = element("code");
 				t1 = text("Media: ");
@@ -56709,16 +56756,16 @@ var app = (function (exports) {
 				}
 
 				attr_dev(div, "class", "container svelte-10ibh3r");
-				add_location(div, file, 26, 0, 451);
+				add_location(div, file, 26, 0, 389);
 				attr_dev(code, "class", "svelte-10ibh3r");
-				add_location(code, file, 32, 0, 528);
+				add_location(code, file, 34, 0, 495);
 			},
 			l: function claim(nodes) {
 				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
 			},
 			m: function mount(target, anchor) {
 				insert_dev(target, div, anchor);
-				mount_component(canvas, div, null);
+				key_block.m(div, null);
 				insert_dev(target, t0, anchor);
 				insert_dev(target, code, anchor);
 				append_dev(code, t1);
@@ -56734,13 +56781,18 @@ var app = (function (exports) {
 				current = true;
 			},
 			p: function update(ctx, [dirty]) {
-				const canvas_changes = {};
-
-				if (dirty & /*$$scope*/ 64) {
-					canvas_changes.$$scope = { dirty, ctx };
+				if (dirty & /*$media*/ 2 && safe_not_equal(previous_key, previous_key = /*$media*/ ctx[1])) {
+					group_outros();
+					transition_out(key_block, 1, 1, noop);
+					check_outros();
+					key_block = create_key_block(ctx);
+					key_block.c();
+					transition_in(key_block, 1);
+					key_block.m(div, null);
+				} else {
+					key_block.p(ctx, dirty);
 				}
 
-				canvas.$set(canvas_changes);
 				if ((!current || dirty & /*$media*/ 2) && t2_value !== (t2_value = JSON.stringify(/*$media*/ ctx[1]) + "")) set_data_dev(t2, t2_value);
 
 				if (dirty & /*logData*/ 4) {
@@ -56768,11 +56820,11 @@ var app = (function (exports) {
 			},
 			i: function intro(local) {
 				if (current) return;
-				transition_in(canvas.$$.fragment, local);
+				transition_in(key_block);
 				current = true;
 			},
 			o: function outro(local) {
-				transition_out(canvas.$$.fragment, local);
+				transition_out(key_block);
 				current = false;
 			},
 			d: function destroy(detaching) {
@@ -56782,7 +56834,7 @@ var app = (function (exports) {
 					detach_dev(code);
 				}
 
-				destroy_component(canvas);
+				key_block.d(detaching);
 				destroy_each(each_blocks, detaching);
 			}
 		};
@@ -56799,10 +56851,8 @@ var app = (function (exports) {
 	}
 
 	function reload(media) {
-		if (media) {
-			window.location.reload();
-		}
-	}
+		
+	} // if (media) { window.location.reload(); }
 
 	function instance($$self, $$props, $$invalidate) {
 		let $media,
@@ -56839,7 +56889,6 @@ var app = (function (exports) {
 
 		$$self.$capture_state = () => ({
 			Canvas,
-			T,
 			Scene,
 			onMount,
 			media,
@@ -56858,9 +56907,7 @@ var app = (function (exports) {
 		}
 
 		$$self.$$.update = () => {
-			if ($$self.$$.dirty & /*$media*/ 2) {
-				reload($media);
-			}
+			if ($$self.$$.dirty & /*$media*/ 2) ;
 		};
 
 		return [media, $media, logData];
@@ -56889,17 +56936,13 @@ var app = (function (exports) {
 	}
 
 	const media = writable({});
-
 	const app = new App({
-		target: document.body,
-		props: { media },
+	    target: document.body,
+	    props: { media },
 	});
-
 	window.addEventListener("DOMContentLoaded", () => {
 	    window.api.on("mediaChanged", (newMedia) => {
-			if (newMedia.assets && newMedia.content) {
-				media.set(newMedia);
-			}
+	        media.set(newMedia);
 	    });
 	});
 

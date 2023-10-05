@@ -33,7 +33,7 @@ function serve() {
 }
 
 export default {
-	input: 'webview/app.js',
+	input: 'webview/app.ts',
 	output: {
 		sourcemap: true,
 		format: 'iife',
@@ -64,14 +64,14 @@ export default {
 			exportConditions: ['svelte']
 		}),
 
-		// typescript({
-		// 	tsconfig: './tsconfig.json',
-		// 	sourceMap: !production,
-		// 	inlineSources: !production,
-		// 	// compilerOptions: {
-		// 	// 	noUnusedLocals: false
-		// 	// }
-		// }),
+		typescript({
+			tsconfig: './tsconfig.json',
+			sourceMap: !production,
+			inlineSources: !production,
+			// compilerOptions: {
+			// 	noUnusedLocals: false
+			// }
+		}),
 
 		// Important to allow node modules to be imported in .svelte files
 		nodePolyfills(),

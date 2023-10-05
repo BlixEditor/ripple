@@ -1,14 +1,14 @@
-<script>
+<script lang="ts">
     import { Canvas, T } from "@threlte/core";
     import Scene from "./Scene.svelte";
     import { onMount } from "svelte";
 
-    export let media;
+    export let media: any;
 
     $: reload($media);
 
-    function reload(media) {
-        if (media) { window.location.reload(); }
+    function reload(media: any) {
+        // if (media) { window.location.reload(); }
     }
 
     let logData = [];
@@ -16,8 +16,8 @@
 
     onMount(() => {
         return;
-        function log(str) {
-            logData = [...logData, str];
+        function log(msg: string) {
+            logData = [...logData, msg];
         }
 
         // exec($media);
@@ -25,9 +25,11 @@
 </script>
 
 <div class="container">
+    {#key $media}
     <Canvas>
         <Scene />
     </Canvas>
+    {/key}
 </div>
 
 <code>
