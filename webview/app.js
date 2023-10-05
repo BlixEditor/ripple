@@ -1,25 +1,30 @@
-const { writable } = require('svelte/store');
-const App = require('./App.svelte').default;
+import { writable } from 'svelte/store';
+import App from './App.svelte';
 
 const media = writable({});
+
+let sender = (message, data) => {};
+
+const send = (message, data) => {
+	sender(message, data);
+}
 
 const app = new App({
 	target: document.body,
 	props: { media },
 });
 
-module.exports.default = app;
-// module.exports.dispatchMessage = (message) => { notifyMessageSubscribers(message); return "asdfHello"; };
-
-// window.api.on("testMessage", (data) => {
-//   console.log(`Received ${data} from main process`);
-// });
-
 window.addEventListener("DOMContentLoaded", () => {
     window.api.on("mediaChanged", (newMedia) => {
-		media.set(newMedia);
-
-		// To send a message back
-		// window.api.send("backTestMessage", "Hello from app.js");
+		if (newMedia.assets && newMedia.content) {
+			media.set(newMedia);
+		}
     });
+
+	// To send a message back to main renderer
+	sender = (message, data) => {
+		window.api.send(message, data);
+	}
 });
+
+export { app };

@@ -5,6 +5,9 @@ import terser from '@rollup/plugin-terser';
 import resolve from '@rollup/plugin-node-resolve';
 import livereload from 'rollup-plugin-livereload';
 import css from 'rollup-plugin-css-only';
+import nodePolyfills from 'rollup-plugin-node-polyfills';
+import sveltePreprocess from 'svelte-preprocess';
+import typescript from '@rollup/plugin-typescript';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -39,6 +42,7 @@ export default {
 	},
 	plugins: [
 		svelte({
+			preprocess: sveltePreprocess({ sourceMap: !production }),
 			compilerOptions: {
 				// enable run-time checks when not in production
 				dev: !production
@@ -56,17 +60,39 @@ export default {
 		resolve({
 			browser: true,
 			dedupe: ['svelte'],
+			preferBuiltins: false,
 			exportConditions: ['svelte']
 		}),
-		commonjs(),
 
-		// In dev mode, call `npm run start` once
-		// the bundle has been generated
-		!production && serve(),
+		// typescript({
+		// 	tsconfig: './tsconfig.json',
+		// 	sourceMap: !production,
+		// 	inlineSources: !production,
+		// 	// compilerOptions: {
+		// 	// 	noUnusedLocals: false
+		// 	// }
+		// }),
 
-		// Watch the `public` directory and refresh the
+		// Important to allow node modules to be imported in .svelte files
+		nodePolyfills(),
+		commonjs({
+			include: 'node_modules/**',
+		}),
+
+		serve({
+			// open: true, // Open browser automatically
+			// verbose: true,
+			// contentBase: ['src', 'dist'],
+
+			// host: 'localhost',
+			// port: 3000,
+		}),
+
+		// Watch the `dist` directory and refresh the
 		// browser on changes when not in production
-		!production && livereload('public'),
+		!production && livereload({
+			watch: 'dist'
+		}),
 
 		// If we're building for production (npm run build
 		// instead of npm run dev), minify

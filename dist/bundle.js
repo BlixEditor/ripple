@@ -1,3075 +1,384 @@
 
 (function(l, r) { if (!l || l.getElementById('livereloadscript')) return; r = l.createElement('script'); r.async = 1; r.src = '//' + (self.location.host || 'localhost').split(':')[0] + ':35730/livereload.js?snipver=1'; r.id = 'livereloadscript'; l.getElementsByTagName('head')[0].appendChild(r) })(self.document);
-var app = (function (child_process) {
+var app = (function (exports) {
 	'use strict';
 
-	var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+	/** @returns {void} */
+	function noop() {}
 
-	function getAugmentedNamespace(n) {
-	  if (n.__esModule) return n;
-	  var f = n.default;
-		if (typeof f == "function") {
-			var a = function a () {
-				if (this instanceof a) {
-					var args = [null];
-					args.push.apply(args, arguments);
-					var Ctor = Function.bind.apply(f, args);
-					return new Ctor();
-				}
-				return f.apply(this, arguments);
-			};
-			a.prototype = f.prototype;
-	  } else a = {};
-	  Object.defineProperty(a, '__esModule', {value: true});
-		Object.keys(n).forEach(function (k) {
-			var d = Object.getOwnPropertyDescriptor(n, k);
-			Object.defineProperty(a, k, d.get ? d : {
-				enumerable: true,
-				get: function () {
-					return n[k];
-				}
-			});
-		});
-		return a;
-	}
-
-	var app$1 = {};
-
-	var store = {};
-
-	var internal = {};
-
-	(function (exports) {
-
-		Object.defineProperty(exports, '__esModule', { value: true });
-
-		function noop() { }
-		const identity = x => x;
-		function assign(tar, src) {
-		    // @ts-ignore
-		    for (const k in src)
-		        tar[k] = src[k];
-		    return tar;
-		}
-		// Adapted from https://github.com/then/is-promise/blob/master/index.js
-		// Distributed under MIT License https://github.com/then/is-promise/blob/master/LICENSE
-		function is_promise(value) {
-		    return !!value && (typeof value === 'object' || typeof value === 'function') && typeof value.then === 'function';
-		}
-		function add_location(element, file, line, column, char) {
-		    element.__svelte_meta = {
-		        loc: { file, line, column, char }
-		    };
-		}
-		function run(fn) {
-		    return fn();
-		}
-		function blank_object() {
-		    return Object.create(null);
-		}
-		function run_all(fns) {
-		    fns.forEach(run);
-		}
-		function is_function(thing) {
-		    return typeof thing === 'function';
-		}
-		function safe_not_equal(a, b) {
-		    return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
-		}
-		let src_url_equal_anchor;
-		function src_url_equal(element_src, url) {
-		    if (!src_url_equal_anchor) {
-		        src_url_equal_anchor = document.createElement('a');
-		    }
-		    src_url_equal_anchor.href = url;
-		    return element_src === src_url_equal_anchor.href;
-		}
-		function not_equal(a, b) {
-		    return a != a ? b == b : a !== b;
-		}
-		function is_empty(obj) {
-		    return Object.keys(obj).length === 0;
-		}
-		function validate_store(store, name) {
-		    if (store != null && typeof store.subscribe !== 'function') {
-		        throw new Error(`'${name}' is not a store with a 'subscribe' method`);
-		    }
-		}
-		function subscribe(store, ...callbacks) {
-		    if (store == null) {
-		        return noop;
-		    }
-		    const unsub = store.subscribe(...callbacks);
-		    return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
-		}
-		function get_store_value(store) {
-		    let value;
-		    subscribe(store, _ => value = _)();
-		    return value;
-		}
-		function component_subscribe(component, store, callback) {
-		    component.$$.on_destroy.push(subscribe(store, callback));
-		}
-		function create_slot(definition, ctx, $$scope, fn) {
-		    if (definition) {
-		        const slot_ctx = get_slot_context(definition, ctx, $$scope, fn);
-		        return definition[0](slot_ctx);
-		    }
-		}
-		function get_slot_context(definition, ctx, $$scope, fn) {
-		    return definition[1] && fn
-		        ? assign($$scope.ctx.slice(), definition[1](fn(ctx)))
-		        : $$scope.ctx;
-		}
-		function get_slot_changes(definition, $$scope, dirty, fn) {
-		    if (definition[2] && fn) {
-		        const lets = definition[2](fn(dirty));
-		        if ($$scope.dirty === undefined) {
-		            return lets;
-		        }
-		        if (typeof lets === 'object') {
-		            const merged = [];
-		            const len = Math.max($$scope.dirty.length, lets.length);
-		            for (let i = 0; i < len; i += 1) {
-		                merged[i] = $$scope.dirty[i] | lets[i];
-		            }
-		            return merged;
-		        }
-		        return $$scope.dirty | lets;
-		    }
-		    return $$scope.dirty;
-		}
-		function update_slot_base(slot, slot_definition, ctx, $$scope, slot_changes, get_slot_context_fn) {
-		    if (slot_changes) {
-		        const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
-		        slot.p(slot_context, slot_changes);
-		    }
-		}
-		function update_slot(slot, slot_definition, ctx, $$scope, dirty, get_slot_changes_fn, get_slot_context_fn) {
-		    const slot_changes = get_slot_changes(slot_definition, $$scope, dirty, get_slot_changes_fn);
-		    update_slot_base(slot, slot_definition, ctx, $$scope, slot_changes, get_slot_context_fn);
-		}
-		function get_all_dirty_from_scope($$scope) {
-		    if ($$scope.ctx.length > 32) {
-		        const dirty = [];
-		        const length = $$scope.ctx.length / 32;
-		        for (let i = 0; i < length; i++) {
-		            dirty[i] = -1;
-		        }
-		        return dirty;
-		    }
-		    return -1;
-		}
-		function exclude_internal_props(props) {
-		    const result = {};
-		    for (const k in props)
-		        if (k[0] !== '$')
-		            result[k] = props[k];
-		    return result;
-		}
-		function compute_rest_props(props, keys) {
-		    const rest = {};
-		    keys = new Set(keys);
-		    for (const k in props)
-		        if (!keys.has(k) && k[0] !== '$')
-		            rest[k] = props[k];
-		    return rest;
-		}
-		function compute_slots(slots) {
-		    const result = {};
-		    for (const key in slots) {
-		        result[key] = true;
-		    }
-		    return result;
-		}
-		function once(fn) {
-		    let ran = false;
-		    return function (...args) {
-		        if (ran)
-		            return;
-		        ran = true;
-		        fn.call(this, ...args);
-		    };
-		}
-		function null_to_empty(value) {
-		    return value == null ? '' : value;
-		}
-		function set_store_value(store, ret, value) {
-		    store.set(value);
-		    return ret;
-		}
-		const has_prop = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop);
-		function action_destroyer(action_result) {
-		    return action_result && is_function(action_result.destroy) ? action_result.destroy : noop;
-		}
-		function split_css_unit(value) {
-		    const split = typeof value === 'string' && value.match(/^\s*(-?[\d.]+)([^\s]*)\s*$/);
-		    return split ? [parseFloat(split[1]), split[2] || 'px'] : [value, 'px'];
-		}
-		const contenteditable_truthy_values = ['', true, 1, 'true', 'contenteditable'];
-
-		const is_client = typeof window !== 'undefined';
-		exports.now = is_client
-		    ? () => window.performance.now()
-		    : () => Date.now();
-		exports.raf = is_client ? cb => requestAnimationFrame(cb) : noop;
-		// used internally for testing
-		function set_now(fn) {
-		    exports.now = fn;
-		}
-		function set_raf(fn) {
-		    exports.raf = fn;
-		}
-
-		const tasks = new Set();
-		function run_tasks(now) {
-		    tasks.forEach(task => {
-		        if (!task.c(now)) {
-		            tasks.delete(task);
-		            task.f();
-		        }
-		    });
-		    if (tasks.size !== 0)
-		        exports.raf(run_tasks);
-		}
-		/**
-		 * For testing purposes only!
-		 */
-		function clear_loops() {
-		    tasks.clear();
-		}
-		/**
-		 * Creates a new task that runs on each raf frame
-		 * until it returns a falsy value or is aborted
-		 */
-		function loop(callback) {
-		    let task;
-		    if (tasks.size === 0)
-		        exports.raf(run_tasks);
-		    return {
-		        promise: new Promise(fulfill => {
-		            tasks.add(task = { c: callback, f: fulfill });
-		        }),
-		        abort() {
-		            tasks.delete(task);
-		        }
-		    };
-		}
-
-		const globals = (typeof window !== 'undefined'
-		    ? window
-		    : typeof globalThis !== 'undefined'
-		        ? globalThis
-		        : commonjsGlobal);
-
-		/**
-		 * Resize observer singleton.
-		 * One listener per element only!
-		 * https://groups.google.com/a/chromium.org/g/blink-dev/c/z6ienONUb5A/m/F5-VcUZtBAAJ
-		 */
-		class ResizeObserverSingleton {
-		    constructor(options) {
-		        this.options = options;
-		        this._listeners = 'WeakMap' in globals ? new WeakMap() : undefined;
-		    }
-		    observe(element, listener) {
-		        this._listeners.set(element, listener);
-		        this._getObserver().observe(element, this.options);
-		        return () => {
-		            this._listeners.delete(element);
-		            this._observer.unobserve(element); // this line can probably be removed
-		        };
-		    }
-		    _getObserver() {
-		        var _a;
-		        return (_a = this._observer) !== null && _a !== void 0 ? _a : (this._observer = new ResizeObserver((entries) => {
-		            var _a;
-		            for (const entry of entries) {
-		                ResizeObserverSingleton.entries.set(entry.target, entry);
-		                (_a = this._listeners.get(entry.target)) === null || _a === void 0 ? void 0 : _a(entry);
-		            }
-		        }));
-		    }
-		}
-		// Needs to be written like this to pass the tree-shake-test
-		ResizeObserverSingleton.entries = 'WeakMap' in globals ? new WeakMap() : undefined;
-
-		// Track which nodes are claimed during hydration. Unclaimed nodes can then be removed from the DOM
-		// at the end of hydration without touching the remaining nodes.
-		let is_hydrating = false;
-		function start_hydrating() {
-		    is_hydrating = true;
-		}
-		function end_hydrating() {
-		    is_hydrating = false;
-		}
-		function upper_bound(low, high, key, value) {
-		    // Return first index of value larger than input value in the range [low, high)
-		    while (low < high) {
-		        const mid = low + ((high - low) >> 1);
-		        if (key(mid) <= value) {
-		            low = mid + 1;
-		        }
-		        else {
-		            high = mid;
-		        }
-		    }
-		    return low;
-		}
-		function init_hydrate(target) {
-		    if (target.hydrate_init)
-		        return;
-		    target.hydrate_init = true;
-		    // We know that all children have claim_order values since the unclaimed have been detached if target is not <head>
-		    let children = target.childNodes;
-		    // If target is <head>, there may be children without claim_order
-		    if (target.nodeName === 'HEAD') {
-		        const myChildren = [];
-		        for (let i = 0; i < children.length; i++) {
-		            const node = children[i];
-		            if (node.claim_order !== undefined) {
-		                myChildren.push(node);
-		            }
-		        }
-		        children = myChildren;
-		    }
-		    /*
-		    * Reorder claimed children optimally.
-		    * We can reorder claimed children optimally by finding the longest subsequence of
-		    * nodes that are already claimed in order and only moving the rest. The longest
-		    * subsequence of nodes that are claimed in order can be found by
-		    * computing the longest increasing subsequence of .claim_order values.
-		    *
-		    * This algorithm is optimal in generating the least amount of reorder operations
-		    * possible.
-		    *
-		    * Proof:
-		    * We know that, given a set of reordering operations, the nodes that do not move
-		    * always form an increasing subsequence, since they do not move among each other
-		    * meaning that they must be already ordered among each other. Thus, the maximal
-		    * set of nodes that do not move form a longest increasing subsequence.
-		    */
-		    // Compute longest increasing subsequence
-		    // m: subsequence length j => index k of smallest value that ends an increasing subsequence of length j
-		    const m = new Int32Array(children.length + 1);
-		    // Predecessor indices + 1
-		    const p = new Int32Array(children.length);
-		    m[0] = -1;
-		    let longest = 0;
-		    for (let i = 0; i < children.length; i++) {
-		        const current = children[i].claim_order;
-		        // Find the largest subsequence length such that it ends in a value less than our current value
-		        // upper_bound returns first greater value, so we subtract one
-		        // with fast path for when we are on the current longest subsequence
-		        const seqLen = ((longest > 0 && children[m[longest]].claim_order <= current) ? longest + 1 : upper_bound(1, longest, idx => children[m[idx]].claim_order, current)) - 1;
-		        p[i] = m[seqLen] + 1;
-		        const newLen = seqLen + 1;
-		        // We can guarantee that current is the smallest value. Otherwise, we would have generated a longer sequence.
-		        m[newLen] = i;
-		        longest = Math.max(newLen, longest);
-		    }
-		    // The longest increasing subsequence of nodes (initially reversed)
-		    const lis = [];
-		    // The rest of the nodes, nodes that will be moved
-		    const toMove = [];
-		    let last = children.length - 1;
-		    for (let cur = m[longest] + 1; cur != 0; cur = p[cur - 1]) {
-		        lis.push(children[cur - 1]);
-		        for (; last >= cur; last--) {
-		            toMove.push(children[last]);
-		        }
-		        last--;
-		    }
-		    for (; last >= 0; last--) {
-		        toMove.push(children[last]);
-		    }
-		    lis.reverse();
-		    // We sort the nodes being moved to guarantee that their insertion order matches the claim order
-		    toMove.sort((a, b) => a.claim_order - b.claim_order);
-		    // Finally, we move the nodes
-		    for (let i = 0, j = 0; i < toMove.length; i++) {
-		        while (j < lis.length && toMove[i].claim_order >= lis[j].claim_order) {
-		            j++;
-		        }
-		        const anchor = j < lis.length ? lis[j] : null;
-		        target.insertBefore(toMove[i], anchor);
-		    }
-		}
-		function append(target, node) {
-		    target.appendChild(node);
-		}
-		function append_styles(target, style_sheet_id, styles) {
-		    const append_styles_to = get_root_for_style(target);
-		    if (!append_styles_to.getElementById(style_sheet_id)) {
-		        const style = element('style');
-		        style.id = style_sheet_id;
-		        style.textContent = styles;
-		        append_stylesheet(append_styles_to, style);
-		    }
-		}
-		function get_root_for_style(node) {
-		    if (!node)
-		        return document;
-		    const root = node.getRootNode ? node.getRootNode() : node.ownerDocument;
-		    if (root && root.host) {
-		        return root;
-		    }
-		    return node.ownerDocument;
-		}
-		function append_empty_stylesheet(node) {
-		    const style_element = element('style');
-		    append_stylesheet(get_root_for_style(node), style_element);
-		    return style_element.sheet;
-		}
-		function append_stylesheet(node, style) {
-		    append(node.head || node, style);
-		    return style.sheet;
-		}
-		function append_hydration(target, node) {
-		    if (is_hydrating) {
-		        init_hydrate(target);
-		        if ((target.actual_end_child === undefined) || ((target.actual_end_child !== null) && (target.actual_end_child.parentNode !== target))) {
-		            target.actual_end_child = target.firstChild;
-		        }
-		        // Skip nodes of undefined ordering
-		        while ((target.actual_end_child !== null) && (target.actual_end_child.claim_order === undefined)) {
-		            target.actual_end_child = target.actual_end_child.nextSibling;
-		        }
-		        if (node !== target.actual_end_child) {
-		            // We only insert if the ordering of this node should be modified or the parent node is not target
-		            if (node.claim_order !== undefined || node.parentNode !== target) {
-		                target.insertBefore(node, target.actual_end_child);
-		            }
-		        }
-		        else {
-		            target.actual_end_child = node.nextSibling;
-		        }
-		    }
-		    else if (node.parentNode !== target || node.nextSibling !== null) {
-		        target.appendChild(node);
-		    }
-		}
-		function insert(target, node, anchor) {
-		    target.insertBefore(node, anchor || null);
-		}
-		function insert_hydration(target, node, anchor) {
-		    if (is_hydrating && !anchor) {
-		        append_hydration(target, node);
-		    }
-		    else if (node.parentNode !== target || node.nextSibling != anchor) {
-		        target.insertBefore(node, anchor || null);
-		    }
-		}
-		function detach(node) {
-		    if (node.parentNode) {
-		        node.parentNode.removeChild(node);
-		    }
-		}
-		function destroy_each(iterations, detaching) {
-		    for (let i = 0; i < iterations.length; i += 1) {
-		        if (iterations[i])
-		            iterations[i].d(detaching);
-		    }
-		}
-		function element(name) {
-		    return document.createElement(name);
-		}
-		function element_is(name, is) {
-		    return document.createElement(name, { is });
-		}
-		function object_without_properties(obj, exclude) {
-		    const target = {};
-		    for (const k in obj) {
-		        if (has_prop(obj, k)
-		            // @ts-ignore
-		            && exclude.indexOf(k) === -1) {
-		            // @ts-ignore
-		            target[k] = obj[k];
-		        }
-		    }
-		    return target;
-		}
-		function svg_element(name) {
-		    return document.createElementNS('http://www.w3.org/2000/svg', name);
-		}
-		function text(data) {
-		    return document.createTextNode(data);
-		}
-		function space() {
-		    return text(' ');
-		}
-		function empty() {
-		    return text('');
-		}
-		function comment(content) {
-		    return document.createComment(content);
-		}
-		function listen(node, event, handler, options) {
-		    node.addEventListener(event, handler, options);
-		    return () => node.removeEventListener(event, handler, options);
-		}
-		function prevent_default(fn) {
-		    return function (event) {
-		        event.preventDefault();
-		        // @ts-ignore
-		        return fn.call(this, event);
-		    };
-		}
-		function stop_propagation(fn) {
-		    return function (event) {
-		        event.stopPropagation();
-		        // @ts-ignore
-		        return fn.call(this, event);
-		    };
-		}
-		function stop_immediate_propagation(fn) {
-		    return function (event) {
-		        event.stopImmediatePropagation();
-		        // @ts-ignore
-		        return fn.call(this, event);
-		    };
-		}
-		function self(fn) {
-		    return function (event) {
-		        // @ts-ignore
-		        if (event.target === this)
-		            fn.call(this, event);
-		    };
-		}
-		function trusted(fn) {
-		    return function (event) {
-		        // @ts-ignore
-		        if (event.isTrusted)
-		            fn.call(this, event);
-		    };
-		}
-		function attr(node, attribute, value) {
-		    if (value == null)
-		        node.removeAttribute(attribute);
-		    else if (node.getAttribute(attribute) !== value)
-		        node.setAttribute(attribute, value);
-		}
-		/**
-		 * List of attributes that should always be set through the attr method,
-		 * because updating them through the property setter doesn't work reliably.
-		 * In the example of `width`/`height`, the problem is that the setter only
-		 * accepts numeric values, but the attribute can also be set to a string like `50%`.
-		 * If this list becomes too big, rethink this approach.
-		 */
-		const always_set_through_set_attribute = ['width', 'height'];
-		function set_attributes(node, attributes) {
-		    // @ts-ignore
-		    const descriptors = Object.getOwnPropertyDescriptors(node.__proto__);
-		    for (const key in attributes) {
-		        if (attributes[key] == null) {
-		            node.removeAttribute(key);
-		        }
-		        else if (key === 'style') {
-		            node.style.cssText = attributes[key];
-		        }
-		        else if (key === '__value') {
-		            node.value = node[key] = attributes[key];
-		        }
-		        else if (descriptors[key] && descriptors[key].set && always_set_through_set_attribute.indexOf(key) === -1) {
-		            node[key] = attributes[key];
-		        }
-		        else {
-		            attr(node, key, attributes[key]);
-		        }
-		    }
-		}
-		function set_svg_attributes(node, attributes) {
-		    for (const key in attributes) {
-		        attr(node, key, attributes[key]);
-		    }
-		}
-		function set_custom_element_data_map(node, data_map) {
-		    Object.keys(data_map).forEach((key) => {
-		        set_custom_element_data(node, key, data_map[key]);
-		    });
-		}
-		function set_custom_element_data(node, prop, value) {
-		    if (prop in node) {
-		        node[prop] = typeof node[prop] === 'boolean' && value === '' ? true : value;
-		    }
-		    else {
-		        attr(node, prop, value);
-		    }
-		}
-		function set_dynamic_element_data(tag) {
-		    return (/-/.test(tag)) ? set_custom_element_data_map : set_attributes;
-		}
-		function xlink_attr(node, attribute, value) {
-		    node.setAttributeNS('http://www.w3.org/1999/xlink', attribute, value);
-		}
-		function get_binding_group_value(group, __value, checked) {
-		    const value = new Set();
-		    for (let i = 0; i < group.length; i += 1) {
-		        if (group[i].checked)
-		            value.add(group[i].__value);
-		    }
-		    if (!checked) {
-		        value.delete(__value);
-		    }
-		    return Array.from(value);
-		}
-		function init_binding_group(group) {
-		    let _inputs;
-		    return {
-		        /* push */ p(...inputs) {
-		            _inputs = inputs;
-		            _inputs.forEach(input => group.push(input));
-		        },
-		        /* remove */ r() {
-		            _inputs.forEach(input => group.splice(group.indexOf(input), 1));
-		        }
-		    };
-		}
-		function init_binding_group_dynamic(group, indexes) {
-		    let _group = get_binding_group(group);
-		    let _inputs;
-		    function get_binding_group(group) {
-		        for (let i = 0; i < indexes.length; i++) {
-		            group = group[indexes[i]] = group[indexes[i]] || [];
-		        }
-		        return group;
-		    }
-		    function push() {
-		        _inputs.forEach(input => _group.push(input));
-		    }
-		    function remove() {
-		        _inputs.forEach(input => _group.splice(_group.indexOf(input), 1));
-		    }
-		    return {
-		        /* update */ u(new_indexes) {
-		            indexes = new_indexes;
-		            const new_group = get_binding_group(group);
-		            if (new_group !== _group) {
-		                remove();
-		                _group = new_group;
-		                push();
-		            }
-		        },
-		        /* push */ p(...inputs) {
-		            _inputs = inputs;
-		            push();
-		        },
-		        /* remove */ r: remove
-		    };
-		}
-		function to_number(value) {
-		    return value === '' ? null : +value;
-		}
-		function time_ranges_to_array(ranges) {
-		    const array = [];
-		    for (let i = 0; i < ranges.length; i += 1) {
-		        array.push({ start: ranges.start(i), end: ranges.end(i) });
-		    }
-		    return array;
-		}
-		function children(element) {
-		    return Array.from(element.childNodes);
-		}
-		function init_claim_info(nodes) {
-		    if (nodes.claim_info === undefined) {
-		        nodes.claim_info = { last_index: 0, total_claimed: 0 };
-		    }
-		}
-		function claim_node(nodes, predicate, processNode, createNode, dontUpdateLastIndex = false) {
-		    // Try to find nodes in an order such that we lengthen the longest increasing subsequence
-		    init_claim_info(nodes);
-		    const resultNode = (() => {
-		        // We first try to find an element after the previous one
-		        for (let i = nodes.claim_info.last_index; i < nodes.length; i++) {
-		            const node = nodes[i];
-		            if (predicate(node)) {
-		                const replacement = processNode(node);
-		                if (replacement === undefined) {
-		                    nodes.splice(i, 1);
-		                }
-		                else {
-		                    nodes[i] = replacement;
-		                }
-		                if (!dontUpdateLastIndex) {
-		                    nodes.claim_info.last_index = i;
-		                }
-		                return node;
-		            }
-		        }
-		        // Otherwise, we try to find one before
-		        // We iterate in reverse so that we don't go too far back
-		        for (let i = nodes.claim_info.last_index - 1; i >= 0; i--) {
-		            const node = nodes[i];
-		            if (predicate(node)) {
-		                const replacement = processNode(node);
-		                if (replacement === undefined) {
-		                    nodes.splice(i, 1);
-		                }
-		                else {
-		                    nodes[i] = replacement;
-		                }
-		                if (!dontUpdateLastIndex) {
-		                    nodes.claim_info.last_index = i;
-		                }
-		                else if (replacement === undefined) {
-		                    // Since we spliced before the last_index, we decrease it
-		                    nodes.claim_info.last_index--;
-		                }
-		                return node;
-		            }
-		        }
-		        // If we can't find any matching node, we create a new one
-		        return createNode();
-		    })();
-		    resultNode.claim_order = nodes.claim_info.total_claimed;
-		    nodes.claim_info.total_claimed += 1;
-		    return resultNode;
-		}
-		function claim_element_base(nodes, name, attributes, create_element) {
-		    return claim_node(nodes, (node) => node.nodeName === name, (node) => {
-		        const remove = [];
-		        for (let j = 0; j < node.attributes.length; j++) {
-		            const attribute = node.attributes[j];
-		            if (!attributes[attribute.name]) {
-		                remove.push(attribute.name);
-		            }
-		        }
-		        remove.forEach(v => node.removeAttribute(v));
-		        return undefined;
-		    }, () => create_element(name));
-		}
-		function claim_element(nodes, name, attributes) {
-		    return claim_element_base(nodes, name, attributes, element);
-		}
-		function claim_svg_element(nodes, name, attributes) {
-		    return claim_element_base(nodes, name, attributes, svg_element);
-		}
-		function claim_text(nodes, data) {
-		    return claim_node(nodes, (node) => node.nodeType === 3, (node) => {
-		        const dataStr = '' + data;
-		        if (node.data.startsWith(dataStr)) {
-		            if (node.data.length !== dataStr.length) {
-		                return node.splitText(dataStr.length);
-		            }
-		        }
-		        else {
-		            node.data = dataStr;
-		        }
-		    }, () => text(data), true // Text nodes should not update last index since it is likely not worth it to eliminate an increasing subsequence of actual elements
-		    );
-		}
-		function claim_space(nodes) {
-		    return claim_text(nodes, ' ');
-		}
-		function claim_comment(nodes, data) {
-		    return claim_node(nodes, (node) => node.nodeType === 8, (node) => {
-		        node.data = '' + data;
-		        return undefined;
-		    }, () => comment(data), true);
-		}
-		function find_comment(nodes, text, start) {
-		    for (let i = start; i < nodes.length; i += 1) {
-		        const node = nodes[i];
-		        if (node.nodeType === 8 /* comment node */ && node.textContent.trim() === text) {
-		            return i;
-		        }
-		    }
-		    return nodes.length;
-		}
-		function claim_html_tag(nodes, is_svg) {
-		    // find html opening tag
-		    const start_index = find_comment(nodes, 'HTML_TAG_START', 0);
-		    const end_index = find_comment(nodes, 'HTML_TAG_END', start_index);
-		    if (start_index === end_index) {
-		        return new HtmlTagHydration(undefined, is_svg);
-		    }
-		    init_claim_info(nodes);
-		    const html_tag_nodes = nodes.splice(start_index, end_index - start_index + 1);
-		    detach(html_tag_nodes[0]);
-		    detach(html_tag_nodes[html_tag_nodes.length - 1]);
-		    const claimed_nodes = html_tag_nodes.slice(1, html_tag_nodes.length - 1);
-		    for (const n of claimed_nodes) {
-		        n.claim_order = nodes.claim_info.total_claimed;
-		        nodes.claim_info.total_claimed += 1;
-		    }
-		    return new HtmlTagHydration(claimed_nodes, is_svg);
-		}
-		function set_data(text, data) {
-		    data = '' + data;
-		    if (text.data === data)
-		        return;
-		    text.data = data;
-		}
-		function set_data_contenteditable(text, data) {
-		    data = '' + data;
-		    if (text.wholeText === data)
-		        return;
-		    text.data = data;
-		}
-		function set_data_maybe_contenteditable(text, data, attr_value) {
-		    if (~contenteditable_truthy_values.indexOf(attr_value)) {
-		        set_data_contenteditable(text, data);
-		    }
-		    else {
-		        set_data(text, data);
-		    }
-		}
-		function set_input_value(input, value) {
-		    input.value = value == null ? '' : value;
-		}
-		function set_input_type(input, type) {
-		    try {
-		        input.type = type;
-		    }
-		    catch (e) {
-		        // do nothing
-		    }
-		}
-		function set_style(node, key, value, important) {
-		    if (value == null) {
-		        node.style.removeProperty(key);
-		    }
-		    else {
-		        node.style.setProperty(key, value, important ? 'important' : '');
-		    }
-		}
-		function select_option(select, value, mounting) {
-		    for (let i = 0; i < select.options.length; i += 1) {
-		        const option = select.options[i];
-		        if (option.__value === value) {
-		            option.selected = true;
-		            return;
-		        }
-		    }
-		    if (!mounting || value !== undefined) {
-		        select.selectedIndex = -1; // no option should be selected
-		    }
-		}
-		function select_options(select, value) {
-		    for (let i = 0; i < select.options.length; i += 1) {
-		        const option = select.options[i];
-		        option.selected = ~value.indexOf(option.__value);
-		    }
-		}
-		function select_value(select) {
-		    const selected_option = select.querySelector(':checked');
-		    return selected_option && selected_option.__value;
-		}
-		function select_multiple_value(select) {
-		    return [].map.call(select.querySelectorAll(':checked'), option => option.__value);
-		}
-		// unfortunately this can't be a constant as that wouldn't be tree-shakeable
-		// so we cache the result instead
-		let crossorigin;
-		function is_crossorigin() {
-		    if (crossorigin === undefined) {
-		        crossorigin = false;
-		        try {
-		            if (typeof window !== 'undefined' && window.parent) {
-		                void window.parent.document;
-		            }
-		        }
-		        catch (error) {
-		            crossorigin = true;
-		        }
-		    }
-		    return crossorigin;
-		}
-		function add_iframe_resize_listener(node, fn) {
-		    const computed_style = getComputedStyle(node);
-		    if (computed_style.position === 'static') {
-		        node.style.position = 'relative';
-		    }
-		    const iframe = element('iframe');
-		    iframe.setAttribute('style', 'display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; ' +
-		        'overflow: hidden; border: 0; opacity: 0; pointer-events: none; z-index: -1;');
-		    iframe.setAttribute('aria-hidden', 'true');
-		    iframe.tabIndex = -1;
-		    const crossorigin = is_crossorigin();
-		    let unsubscribe;
-		    if (crossorigin) {
-		        iframe.src = "data:text/html,<script>onresize=function(){parent.postMessage(0,'*')}</script>";
-		        unsubscribe = listen(window, 'message', (event) => {
-		            if (event.source === iframe.contentWindow)
-		                fn();
-		        });
-		    }
-		    else {
-		        iframe.src = 'about:blank';
-		        iframe.onload = () => {
-		            unsubscribe = listen(iframe.contentWindow, 'resize', fn);
-		            // make sure an initial resize event is fired _after_ the iframe is loaded (which is asynchronous)
-		            // see https://github.com/sveltejs/svelte/issues/4233
-		            fn();
-		        };
-		    }
-		    append(node, iframe);
-		    return () => {
-		        if (crossorigin) {
-		            unsubscribe();
-		        }
-		        else if (unsubscribe && iframe.contentWindow) {
-		            unsubscribe();
-		        }
-		        detach(iframe);
-		    };
-		}
-		const resize_observer_content_box = /* @__PURE__ */ new ResizeObserverSingleton({ box: 'content-box' });
-		const resize_observer_border_box = /* @__PURE__ */ new ResizeObserverSingleton({ box: 'border-box' });
-		const resize_observer_device_pixel_content_box = /* @__PURE__ */ new ResizeObserverSingleton({ box: 'device-pixel-content-box' });
-		function toggle_class(element, name, toggle) {
-		    element.classList[toggle ? 'add' : 'remove'](name);
-		}
-		function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
-		    const e = document.createEvent('CustomEvent');
-		    e.initCustomEvent(type, bubbles, cancelable, detail);
-		    return e;
-		}
-		function query_selector_all(selector, parent = document.body) {
-		    return Array.from(parent.querySelectorAll(selector));
-		}
-		function head_selector(nodeId, head) {
-		    const result = [];
-		    let started = 0;
-		    for (const node of head.childNodes) {
-		        if (node.nodeType === 8 /* comment node */) {
-		            const comment = node.textContent.trim();
-		            if (comment === `HEAD_${nodeId}_END`) {
-		                started -= 1;
-		                result.push(node);
-		            }
-		            else if (comment === `HEAD_${nodeId}_START`) {
-		                started += 1;
-		                result.push(node);
-		            }
-		        }
-		        else if (started > 0) {
-		            result.push(node);
-		        }
-		    }
-		    return result;
-		}
-		class HtmlTag {
-		    constructor(is_svg = false) {
-		        this.is_svg = false;
-		        this.is_svg = is_svg;
-		        this.e = this.n = null;
-		    }
-		    c(html) {
-		        this.h(html);
-		    }
-		    m(html, target, anchor = null) {
-		        if (!this.e) {
-		            if (this.is_svg)
-		                this.e = svg_element(target.nodeName);
-		            /** #7364  target for <template> may be provided as #document-fragment(11) */
-		            else
-		                this.e = element((target.nodeType === 11 ? 'TEMPLATE' : target.nodeName));
-		            this.t = target.tagName !== 'TEMPLATE' ? target : target.content;
-		            this.c(html);
-		        }
-		        this.i(anchor);
-		    }
-		    h(html) {
-		        this.e.innerHTML = html;
-		        this.n = Array.from(this.e.nodeName === 'TEMPLATE' ? this.e.content.childNodes : this.e.childNodes);
-		    }
-		    i(anchor) {
-		        for (let i = 0; i < this.n.length; i += 1) {
-		            insert(this.t, this.n[i], anchor);
-		        }
-		    }
-		    p(html) {
-		        this.d();
-		        this.h(html);
-		        this.i(this.a);
-		    }
-		    d() {
-		        this.n.forEach(detach);
-		    }
-		}
-		class HtmlTagHydration extends HtmlTag {
-		    constructor(claimed_nodes, is_svg = false) {
-		        super(is_svg);
-		        this.e = this.n = null;
-		        this.l = claimed_nodes;
-		    }
-		    c(html) {
-		        if (this.l) {
-		            this.n = this.l;
-		        }
-		        else {
-		            super.c(html);
-		        }
-		    }
-		    i(anchor) {
-		        for (let i = 0; i < this.n.length; i += 1) {
-		            insert_hydration(this.t, this.n[i], anchor);
-		        }
-		    }
-		}
-		function attribute_to_object(attributes) {
-		    const result = {};
-		    for (const attribute of attributes) {
-		        result[attribute.name] = attribute.value;
-		    }
-		    return result;
-		}
-		function get_custom_elements_slots(element) {
-		    const result = {};
-		    element.childNodes.forEach((node) => {
-		        result[node.slot || 'default'] = true;
-		    });
-		    return result;
-		}
-		function construct_svelte_component(component, props) {
-		    return new component(props);
-		}
-
-		// we need to store the information for multiple documents because a Svelte application could also contain iframes
-		// https://github.com/sveltejs/svelte/issues/3624
-		const managed_styles = new Map();
-		let active = 0;
-		// https://github.com/darkskyapp/string-hash/blob/master/index.js
-		function hash(str) {
-		    let hash = 5381;
-		    let i = str.length;
-		    while (i--)
-		        hash = ((hash << 5) - hash) ^ str.charCodeAt(i);
-		    return hash >>> 0;
-		}
-		function create_style_information(doc, node) {
-		    const info = { stylesheet: append_empty_stylesheet(node), rules: {} };
-		    managed_styles.set(doc, info);
-		    return info;
-		}
-		function create_rule(node, a, b, duration, delay, ease, fn, uid = 0) {
-		    const step = 16.666 / duration;
-		    let keyframes = '{\n';
-		    for (let p = 0; p <= 1; p += step) {
-		        const t = a + (b - a) * ease(p);
-		        keyframes += p * 100 + `%{${fn(t, 1 - t)}}\n`;
-		    }
-		    const rule = keyframes + `100% {${fn(b, 1 - b)}}\n}`;
-		    const name = `__svelte_${hash(rule)}_${uid}`;
-		    const doc = get_root_for_style(node);
-		    const { stylesheet, rules } = managed_styles.get(doc) || create_style_information(doc, node);
-		    if (!rules[name]) {
-		        rules[name] = true;
-		        stylesheet.insertRule(`@keyframes ${name} ${rule}`, stylesheet.cssRules.length);
-		    }
-		    const animation = node.style.animation || '';
-		    node.style.animation = `${animation ? `${animation}, ` : ''}${name} ${duration}ms linear ${delay}ms 1 both`;
-		    active += 1;
-		    return name;
-		}
-		function delete_rule(node, name) {
-		    const previous = (node.style.animation || '').split(', ');
-		    const next = previous.filter(name
-		        ? anim => anim.indexOf(name) < 0 // remove specific animation
-		        : anim => anim.indexOf('__svelte') === -1 // remove all Svelte animations
-		    );
-		    const deleted = previous.length - next.length;
-		    if (deleted) {
-		        node.style.animation = next.join(', ');
-		        active -= deleted;
-		        if (!active)
-		            clear_rules();
-		    }
-		}
-		function clear_rules() {
-		    exports.raf(() => {
-		        if (active)
-		            return;
-		        managed_styles.forEach(info => {
-		            const { ownerNode } = info.stylesheet;
-		            // there is no ownerNode if it runs on jsdom.
-		            if (ownerNode)
-		                detach(ownerNode);
-		        });
-		        managed_styles.clear();
-		    });
-		}
-
-		function create_animation(node, from, fn, params) {
-		    if (!from)
-		        return noop;
-		    const to = node.getBoundingClientRect();
-		    if (from.left === to.left && from.right === to.right && from.top === to.top && from.bottom === to.bottom)
-		        return noop;
-		    const { delay = 0, duration = 300, easing = identity, 
-		    // @ts-ignore todo: should this be separated from destructuring? Or start/end added to public api and documentation?
-		    start: start_time = exports.now() + delay, 
-		    // @ts-ignore todo:
-		    end = start_time + duration, tick = noop, css } = fn(node, { from, to }, params);
-		    let running = true;
-		    let started = false;
-		    let name;
-		    function start() {
-		        if (css) {
-		            name = create_rule(node, 0, 1, duration, delay, easing, css);
-		        }
-		        if (!delay) {
-		            started = true;
-		        }
-		    }
-		    function stop() {
-		        if (css)
-		            delete_rule(node, name);
-		        running = false;
-		    }
-		    loop(now => {
-		        if (!started && now >= start_time) {
-		            started = true;
-		        }
-		        if (started && now >= end) {
-		            tick(1, 0);
-		            stop();
-		        }
-		        if (!running) {
-		            return false;
-		        }
-		        if (started) {
-		            const p = now - start_time;
-		            const t = 0 + 1 * easing(p / duration);
-		            tick(t, 1 - t);
-		        }
-		        return true;
-		    });
-		    start();
-		    tick(0, 1);
-		    return stop;
-		}
-		function fix_position(node) {
-		    const style = getComputedStyle(node);
-		    if (style.position !== 'absolute' && style.position !== 'fixed') {
-		        const { width, height } = style;
-		        const a = node.getBoundingClientRect();
-		        node.style.position = 'absolute';
-		        node.style.width = width;
-		        node.style.height = height;
-		        add_transform(node, a);
-		    }
-		}
-		function add_transform(node, a) {
-		    const b = node.getBoundingClientRect();
-		    if (a.left !== b.left || a.top !== b.top) {
-		        const style = getComputedStyle(node);
-		        const transform = style.transform === 'none' ? '' : style.transform;
-		        node.style.transform = `${transform} translate(${a.left - b.left}px, ${a.top - b.top}px)`;
-		    }
-		}
-
-		function set_current_component(component) {
-		    exports.current_component = component;
-		}
-		function get_current_component() {
-		    if (!exports.current_component)
-		        throw new Error('Function called outside component initialization');
-		    return exports.current_component;
-		}
-		/**
-		 * Schedules a callback to run immediately before the component is updated after any state change.
-		 *
-		 * The first time the callback runs will be before the initial `onMount`
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-beforeupdate
-		 */
-		function beforeUpdate(fn) {
-		    get_current_component().$$.before_update.push(fn);
-		}
-		/**
-		 * The `onMount` function schedules a callback to run as soon as the component has been mounted to the DOM.
-		 * It must be called during the component's initialisation (but doesn't need to live *inside* the component;
-		 * it can be called from an external module).
-		 *
-		 * `onMount` does not run inside a [server-side component](/docs#run-time-server-side-component-api).
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-onmount
-		 */
-		function onMount(fn) {
-		    get_current_component().$$.on_mount.push(fn);
-		}
-		/**
-		 * Schedules a callback to run immediately after the component has been updated.
-		 *
-		 * The first time the callback runs will be after the initial `onMount`
-		 */
-		function afterUpdate(fn) {
-		    get_current_component().$$.after_update.push(fn);
-		}
-		/**
-		 * Schedules a callback to run immediately before the component is unmounted.
-		 *
-		 * Out of `onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`, this is the
-		 * only one that runs inside a server-side component.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-ondestroy
-		 */
-		function onDestroy(fn) {
-		    get_current_component().$$.on_destroy.push(fn);
-		}
-		/**
-		 * Creates an event dispatcher that can be used to dispatch [component events](/docs#template-syntax-component-directives-on-eventname).
-		 * Event dispatchers are functions that can take two arguments: `name` and `detail`.
-		 *
-		 * Component events created with `createEventDispatcher` create a
-		 * [CustomEvent](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent).
-		 * These events do not [bubble](https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events#Event_bubbling_and_capture).
-		 * The `detail` argument corresponds to the [CustomEvent.detail](https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/detail)
-		 * property and can contain any type of data.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-createeventdispatcher
-		 */
-		function createEventDispatcher() {
-		    const component = get_current_component();
-		    return (type, detail, { cancelable = false } = {}) => {
-		        const callbacks = component.$$.callbacks[type];
-		        if (callbacks) {
-		            // TODO are there situations where events could be dispatched
-		            // in a server (non-DOM) environment?
-		            const event = custom_event(type, detail, { cancelable });
-		            callbacks.slice().forEach(fn => {
-		                fn.call(component, event);
-		            });
-		            return !event.defaultPrevented;
-		        }
-		        return true;
-		    };
-		}
-		/**
-		 * Associates an arbitrary `context` object with the current component and the specified `key`
-		 * and returns that object. The context is then available to children of the component
-		 * (including slotted content) with `getContext`.
-		 *
-		 * Like lifecycle functions, this must be called during component initialisation.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-setcontext
-		 */
-		function setContext(key, context) {
-		    get_current_component().$$.context.set(key, context);
-		    return context;
-		}
-		/**
-		 * Retrieves the context that belongs to the closest parent component with the specified `key`.
-		 * Must be called during component initialisation.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-getcontext
-		 */
-		function getContext(key) {
-		    return get_current_component().$$.context.get(key);
-		}
-		/**
-		 * Retrieves the whole context map that belongs to the closest parent component.
-		 * Must be called during component initialisation. Useful, for example, if you
-		 * programmatically create a component and want to pass the existing context to it.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-getallcontexts
-		 */
-		function getAllContexts() {
-		    return get_current_component().$$.context;
-		}
-		/**
-		 * Checks whether a given `key` has been set in the context of a parent component.
-		 * Must be called during component initialisation.
-		 *
-		 * https://svelte.dev/docs#run-time-svelte-hascontext
-		 */
-		function hasContext(key) {
-		    return get_current_component().$$.context.has(key);
-		}
-		// TODO figure out if we still want to support
-		// shorthand events, or if we want to implement
-		// a real bubbling mechanism
-		function bubble(component, event) {
-		    const callbacks = component.$$.callbacks[event.type];
-		    if (callbacks) {
-		        // @ts-ignore
-		        callbacks.slice().forEach(fn => fn.call(this, event));
-		    }
-		}
-
-		const dirty_components = [];
-		const intros = { enabled: false };
-		const binding_callbacks = [];
-		let render_callbacks = [];
-		const flush_callbacks = [];
-		const resolved_promise = /* @__PURE__ */ Promise.resolve();
-		let update_scheduled = false;
-		function schedule_update() {
-		    if (!update_scheduled) {
-		        update_scheduled = true;
-		        resolved_promise.then(flush);
-		    }
-		}
-		function tick() {
-		    schedule_update();
-		    return resolved_promise;
-		}
-		function add_render_callback(fn) {
-		    render_callbacks.push(fn);
-		}
-		function add_flush_callback(fn) {
-		    flush_callbacks.push(fn);
-		}
-		// flush() calls callbacks in this order:
-		// 1. All beforeUpdate callbacks, in order: parents before children
-		// 2. All bind:this callbacks, in reverse order: children before parents.
-		// 3. All afterUpdate callbacks, in order: parents before children. EXCEPT
-		//    for afterUpdates called during the initial onMount, which are called in
-		//    reverse order: children before parents.
-		// Since callbacks might update component values, which could trigger another
-		// call to flush(), the following steps guard against this:
-		// 1. During beforeUpdate, any updated components will be added to the
-		//    dirty_components array and will cause a reentrant call to flush(). Because
-		//    the flush index is kept outside the function, the reentrant call will pick
-		//    up where the earlier call left off and go through all dirty components. The
-		//    current_component value is saved and restored so that the reentrant call will
-		//    not interfere with the "parent" flush() call.
-		// 2. bind:this callbacks cannot trigger new flush() calls.
-		// 3. During afterUpdate, any updated components will NOT have their afterUpdate
-		//    callback called a second time; the seen_callbacks set, outside the flush()
-		//    function, guarantees this behavior.
-		const seen_callbacks = new Set();
-		let flushidx = 0; // Do *not* move this inside the flush() function
-		function flush() {
-		    // Do not reenter flush while dirty components are updated, as this can
-		    // result in an infinite loop. Instead, let the inner flush handle it.
-		    // Reentrancy is ok afterwards for bindings etc.
-		    if (flushidx !== 0) {
-		        return;
-		    }
-		    const saved_component = exports.current_component;
-		    do {
-		        // first, call beforeUpdate functions
-		        // and update components
-		        try {
-		            while (flushidx < dirty_components.length) {
-		                const component = dirty_components[flushidx];
-		                flushidx++;
-		                set_current_component(component);
-		                update(component.$$);
-		            }
-		        }
-		        catch (e) {
-		            // reset dirty state to not end up in a deadlocked state and then rethrow
-		            dirty_components.length = 0;
-		            flushidx = 0;
-		            throw e;
-		        }
-		        set_current_component(null);
-		        dirty_components.length = 0;
-		        flushidx = 0;
-		        while (binding_callbacks.length)
-		            binding_callbacks.pop()();
-		        // then, once components are updated, call
-		        // afterUpdate functions. This may cause
-		        // subsequent updates...
-		        for (let i = 0; i < render_callbacks.length; i += 1) {
-		            const callback = render_callbacks[i];
-		            if (!seen_callbacks.has(callback)) {
-		                // ...so guard against infinite loops
-		                seen_callbacks.add(callback);
-		                callback();
-		            }
-		        }
-		        render_callbacks.length = 0;
-		    } while (dirty_components.length);
-		    while (flush_callbacks.length) {
-		        flush_callbacks.pop()();
-		    }
-		    update_scheduled = false;
-		    seen_callbacks.clear();
-		    set_current_component(saved_component);
-		}
-		function update($$) {
-		    if ($$.fragment !== null) {
-		        $$.update();
-		        run_all($$.before_update);
-		        const dirty = $$.dirty;
-		        $$.dirty = [-1];
-		        $$.fragment && $$.fragment.p($$.ctx, dirty);
-		        $$.after_update.forEach(add_render_callback);
-		    }
-		}
-		/**
-		 * Useful for example to execute remaining `afterUpdate` callbacks before executing `destroy`.
-		 */
-		function flush_render_callbacks(fns) {
-		    const filtered = [];
-		    const targets = [];
-		    render_callbacks.forEach((c) => fns.indexOf(c) === -1 ? filtered.push(c) : targets.push(c));
-		    targets.forEach((c) => c());
-		    render_callbacks = filtered;
-		}
-
-		let promise;
-		function wait() {
-		    if (!promise) {
-		        promise = Promise.resolve();
-		        promise.then(() => {
-		            promise = null;
-		        });
-		    }
-		    return promise;
-		}
-		function dispatch(node, direction, kind) {
-		    node.dispatchEvent(custom_event(`${direction ? 'intro' : 'outro'}${kind}`));
-		}
-		const outroing = new Set();
-		let outros;
-		function group_outros() {
-		    outros = {
-		        r: 0,
-		        c: [],
-		        p: outros // parent group
-		    };
-		}
-		function check_outros() {
-		    if (!outros.r) {
-		        run_all(outros.c);
-		    }
-		    outros = outros.p;
-		}
-		function transition_in(block, local) {
-		    if (block && block.i) {
-		        outroing.delete(block);
-		        block.i(local);
-		    }
-		}
-		function transition_out(block, local, detach, callback) {
-		    if (block && block.o) {
-		        if (outroing.has(block))
-		            return;
-		        outroing.add(block);
-		        outros.c.push(() => {
-		            outroing.delete(block);
-		            if (callback) {
-		                if (detach)
-		                    block.d(1);
-		                callback();
-		            }
-		        });
-		        block.o(local);
-		    }
-		    else if (callback) {
-		        callback();
-		    }
-		}
-		const null_transition = { duration: 0 };
-		function create_in_transition(node, fn, params) {
-		    const options = { direction: 'in' };
-		    let config = fn(node, params, options);
-		    let running = false;
-		    let animation_name;
-		    let task;
-		    let uid = 0;
-		    function cleanup() {
-		        if (animation_name)
-		            delete_rule(node, animation_name);
-		    }
-		    function go() {
-		        const { delay = 0, duration = 300, easing = identity, tick = noop, css } = config || null_transition;
-		        if (css)
-		            animation_name = create_rule(node, 0, 1, duration, delay, easing, css, uid++);
-		        tick(0, 1);
-		        const start_time = exports.now() + delay;
-		        const end_time = start_time + duration;
-		        if (task)
-		            task.abort();
-		        running = true;
-		        add_render_callback(() => dispatch(node, true, 'start'));
-		        task = loop(now => {
-		            if (running) {
-		                if (now >= end_time) {
-		                    tick(1, 0);
-		                    dispatch(node, true, 'end');
-		                    cleanup();
-		                    return running = false;
-		                }
-		                if (now >= start_time) {
-		                    const t = easing((now - start_time) / duration);
-		                    tick(t, 1 - t);
-		                }
-		            }
-		            return running;
-		        });
-		    }
-		    let started = false;
-		    return {
-		        start() {
-		            if (started)
-		                return;
-		            started = true;
-		            delete_rule(node);
-		            if (is_function(config)) {
-		                config = config(options);
-		                wait().then(go);
-		            }
-		            else {
-		                go();
-		            }
-		        },
-		        invalidate() {
-		            started = false;
-		        },
-		        end() {
-		            if (running) {
-		                cleanup();
-		                running = false;
-		            }
-		        }
-		    };
-		}
-		function create_out_transition(node, fn, params) {
-		    const options = { direction: 'out' };
-		    let config = fn(node, params, options);
-		    let running = true;
-		    let animation_name;
-		    const group = outros;
-		    group.r += 1;
-		    function go() {
-		        const { delay = 0, duration = 300, easing = identity, tick = noop, css } = config || null_transition;
-		        if (css)
-		            animation_name = create_rule(node, 1, 0, duration, delay, easing, css);
-		        const start_time = exports.now() + delay;
-		        const end_time = start_time + duration;
-		        add_render_callback(() => dispatch(node, false, 'start'));
-		        loop(now => {
-		            if (running) {
-		                if (now >= end_time) {
-		                    tick(0, 1);
-		                    dispatch(node, false, 'end');
-		                    if (!--group.r) {
-		                        // this will result in `end()` being called,
-		                        // so we don't need to clean up here
-		                        run_all(group.c);
-		                    }
-		                    return false;
-		                }
-		                if (now >= start_time) {
-		                    const t = easing((now - start_time) / duration);
-		                    tick(1 - t, t);
-		                }
-		            }
-		            return running;
-		        });
-		    }
-		    if (is_function(config)) {
-		        wait().then(() => {
-		            // @ts-ignore
-		            config = config(options);
-		            go();
-		        });
-		    }
-		    else {
-		        go();
-		    }
-		    return {
-		        end(reset) {
-		            if (reset && config.tick) {
-		                config.tick(1, 0);
-		            }
-		            if (running) {
-		                if (animation_name)
-		                    delete_rule(node, animation_name);
-		                running = false;
-		            }
-		        }
-		    };
-		}
-		function create_bidirectional_transition(node, fn, params, intro) {
-		    const options = { direction: 'both' };
-		    let config = fn(node, params, options);
-		    let t = intro ? 0 : 1;
-		    let running_program = null;
-		    let pending_program = null;
-		    let animation_name = null;
-		    function clear_animation() {
-		        if (animation_name)
-		            delete_rule(node, animation_name);
-		    }
-		    function init(program, duration) {
-		        const d = (program.b - t);
-		        duration *= Math.abs(d);
-		        return {
-		            a: t,
-		            b: program.b,
-		            d,
-		            duration,
-		            start: program.start,
-		            end: program.start + duration,
-		            group: program.group
-		        };
-		    }
-		    function go(b) {
-		        const { delay = 0, duration = 300, easing = identity, tick = noop, css } = config || null_transition;
-		        const program = {
-		            start: exports.now() + delay,
-		            b
-		        };
-		        if (!b) {
-		            // @ts-ignore todo: improve typings
-		            program.group = outros;
-		            outros.r += 1;
-		        }
-		        if (running_program || pending_program) {
-		            pending_program = program;
-		        }
-		        else {
-		            // if this is an intro, and there's a delay, we need to do
-		            // an initial tick and/or apply CSS animation immediately
-		            if (css) {
-		                clear_animation();
-		                animation_name = create_rule(node, t, b, duration, delay, easing, css);
-		            }
-		            if (b)
-		                tick(0, 1);
-		            running_program = init(program, duration);
-		            add_render_callback(() => dispatch(node, b, 'start'));
-		            loop(now => {
-		                if (pending_program && now > pending_program.start) {
-		                    running_program = init(pending_program, duration);
-		                    pending_program = null;
-		                    dispatch(node, running_program.b, 'start');
-		                    if (css) {
-		                        clear_animation();
-		                        animation_name = create_rule(node, t, running_program.b, running_program.duration, 0, easing, config.css);
-		                    }
-		                }
-		                if (running_program) {
-		                    if (now >= running_program.end) {
-		                        tick(t = running_program.b, 1 - t);
-		                        dispatch(node, running_program.b, 'end');
-		                        if (!pending_program) {
-		                            // we're done
-		                            if (running_program.b) {
-		                                // intro — we can tidy up immediately
-		                                clear_animation();
-		                            }
-		                            else {
-		                                // outro — needs to be coordinated
-		                                if (!--running_program.group.r)
-		                                    run_all(running_program.group.c);
-		                            }
-		                        }
-		                        running_program = null;
-		                    }
-		                    else if (now >= running_program.start) {
-		                        const p = now - running_program.start;
-		                        t = running_program.a + running_program.d * easing(p / running_program.duration);
-		                        tick(t, 1 - t);
-		                    }
-		                }
-		                return !!(running_program || pending_program);
-		            });
-		        }
-		    }
-		    return {
-		        run(b) {
-		            if (is_function(config)) {
-		                wait().then(() => {
-		                    // @ts-ignore
-		                    config = config(options);
-		                    go(b);
-		                });
-		            }
-		            else {
-		                go(b);
-		            }
-		        },
-		        end() {
-		            clear_animation();
-		            running_program = pending_program = null;
-		        }
-		    };
-		}
-
-		function handle_promise(promise, info) {
-		    const token = info.token = {};
-		    function update(type, index, key, value) {
-		        if (info.token !== token)
-		            return;
-		        info.resolved = value;
-		        let child_ctx = info.ctx;
-		        if (key !== undefined) {
-		            child_ctx = child_ctx.slice();
-		            child_ctx[key] = value;
-		        }
-		        const block = type && (info.current = type)(child_ctx);
-		        let needs_flush = false;
-		        if (info.block) {
-		            if (info.blocks) {
-		                info.blocks.forEach((block, i) => {
-		                    if (i !== index && block) {
-		                        group_outros();
-		                        transition_out(block, 1, 1, () => {
-		                            if (info.blocks[i] === block) {
-		                                info.blocks[i] = null;
-		                            }
-		                        });
-		                        check_outros();
-		                    }
-		                });
-		            }
-		            else {
-		                info.block.d(1);
-		            }
-		            block.c();
-		            transition_in(block, 1);
-		            block.m(info.mount(), info.anchor);
-		            needs_flush = true;
-		        }
-		        info.block = block;
-		        if (info.blocks)
-		            info.blocks[index] = block;
-		        if (needs_flush) {
-		            flush();
-		        }
-		    }
-		    if (is_promise(promise)) {
-		        const current_component = get_current_component();
-		        promise.then(value => {
-		            set_current_component(current_component);
-		            update(info.then, 1, info.value, value);
-		            set_current_component(null);
-		        }, error => {
-		            set_current_component(current_component);
-		            update(info.catch, 2, info.error, error);
-		            set_current_component(null);
-		            if (!info.hasCatch) {
-		                throw error;
-		            }
-		        });
-		        // if we previously had a then/catch block, destroy it
-		        if (info.current !== info.pending) {
-		            update(info.pending, 0);
-		            return true;
-		        }
-		    }
-		    else {
-		        if (info.current !== info.then) {
-		            update(info.then, 1, info.value, promise);
-		            return true;
-		        }
-		        info.resolved = promise;
-		    }
-		}
-		function update_await_block_branch(info, ctx, dirty) {
-		    const child_ctx = ctx.slice();
-		    const { resolved } = info;
-		    if (info.current === info.then) {
-		        child_ctx[info.value] = resolved;
-		    }
-		    if (info.current === info.catch) {
-		        child_ctx[info.error] = resolved;
-		    }
-		    info.block.p(child_ctx, dirty);
-		}
-
-		function destroy_block(block, lookup) {
-		    block.d(1);
-		    lookup.delete(block.key);
-		}
-		function outro_and_destroy_block(block, lookup) {
-		    transition_out(block, 1, 1, () => {
-		        lookup.delete(block.key);
-		    });
-		}
-		function fix_and_destroy_block(block, lookup) {
-		    block.f();
-		    destroy_block(block, lookup);
-		}
-		function fix_and_outro_and_destroy_block(block, lookup) {
-		    block.f();
-		    outro_and_destroy_block(block, lookup);
-		}
-		function update_keyed_each(old_blocks, dirty, get_key, dynamic, ctx, list, lookup, node, destroy, create_each_block, next, get_context) {
-		    let o = old_blocks.length;
-		    let n = list.length;
-		    let i = o;
-		    const old_indexes = {};
-		    while (i--)
-		        old_indexes[old_blocks[i].key] = i;
-		    const new_blocks = [];
-		    const new_lookup = new Map();
-		    const deltas = new Map();
-		    const updates = [];
-		    i = n;
-		    while (i--) {
-		        const child_ctx = get_context(ctx, list, i);
-		        const key = get_key(child_ctx);
-		        let block = lookup.get(key);
-		        if (!block) {
-		            block = create_each_block(key, child_ctx);
-		            block.c();
-		        }
-		        else if (dynamic) {
-		            // defer updates until all the DOM shuffling is done
-		            updates.push(() => block.p(child_ctx, dirty));
-		        }
-		        new_lookup.set(key, new_blocks[i] = block);
-		        if (key in old_indexes)
-		            deltas.set(key, Math.abs(i - old_indexes[key]));
-		    }
-		    const will_move = new Set();
-		    const did_move = new Set();
-		    function insert(block) {
-		        transition_in(block, 1);
-		        block.m(node, next);
-		        lookup.set(block.key, block);
-		        next = block.first;
-		        n--;
-		    }
-		    while (o && n) {
-		        const new_block = new_blocks[n - 1];
-		        const old_block = old_blocks[o - 1];
-		        const new_key = new_block.key;
-		        const old_key = old_block.key;
-		        if (new_block === old_block) {
-		            // do nothing
-		            next = new_block.first;
-		            o--;
-		            n--;
-		        }
-		        else if (!new_lookup.has(old_key)) {
-		            // remove old block
-		            destroy(old_block, lookup);
-		            o--;
-		        }
-		        else if (!lookup.has(new_key) || will_move.has(new_key)) {
-		            insert(new_block);
-		        }
-		        else if (did_move.has(old_key)) {
-		            o--;
-		        }
-		        else if (deltas.get(new_key) > deltas.get(old_key)) {
-		            did_move.add(new_key);
-		            insert(new_block);
-		        }
-		        else {
-		            will_move.add(old_key);
-		            o--;
-		        }
-		    }
-		    while (o--) {
-		        const old_block = old_blocks[o];
-		        if (!new_lookup.has(old_block.key))
-		            destroy(old_block, lookup);
-		    }
-		    while (n)
-		        insert(new_blocks[n - 1]);
-		    run_all(updates);
-		    return new_blocks;
-		}
-		function validate_each_keys(ctx, list, get_context, get_key) {
-		    const keys = new Set();
-		    for (let i = 0; i < list.length; i++) {
-		        const key = get_key(get_context(ctx, list, i));
-		        if (keys.has(key)) {
-		            throw new Error('Cannot have duplicate keys in a keyed each');
-		        }
-		        keys.add(key);
-		    }
-		}
-
-		function get_spread_update(levels, updates) {
-		    const update = {};
-		    const to_null_out = {};
-		    const accounted_for = { $$scope: 1 };
-		    let i = levels.length;
-		    while (i--) {
-		        const o = levels[i];
-		        const n = updates[i];
-		        if (n) {
-		            for (const key in o) {
-		                if (!(key in n))
-		                    to_null_out[key] = 1;
-		            }
-		            for (const key in n) {
-		                if (!accounted_for[key]) {
-		                    update[key] = n[key];
-		                    accounted_for[key] = 1;
-		                }
-		            }
-		            levels[i] = n;
-		        }
-		        else {
-		            for (const key in o) {
-		                accounted_for[key] = 1;
-		            }
-		        }
-		    }
-		    for (const key in to_null_out) {
-		        if (!(key in update))
-		            update[key] = undefined;
-		    }
-		    return update;
-		}
-		function get_spread_object(spread_props) {
-		    return typeof spread_props === 'object' && spread_props !== null ? spread_props : {};
-		}
-
-		const _boolean_attributes = [
-		    'allowfullscreen',
-		    'allowpaymentrequest',
-		    'async',
-		    'autofocus',
-		    'autoplay',
-		    'checked',
-		    'controls',
-		    'default',
-		    'defer',
-		    'disabled',
-		    'formnovalidate',
-		    'hidden',
-		    'inert',
-		    'ismap',
-		    'loop',
-		    'multiple',
-		    'muted',
-		    'nomodule',
-		    'novalidate',
-		    'open',
-		    'playsinline',
-		    'readonly',
-		    'required',
-		    'reversed',
-		    'selected'
-		];
-		/**
-		 * List of HTML boolean attributes (e.g. `<input disabled>`).
-		 * Source: https://html.spec.whatwg.org/multipage/indices.html
-		 */
-		const boolean_attributes = new Set([..._boolean_attributes]);
-
-		/** regex of all html void element names */
-		const void_element_names = /^(?:area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr)$/;
-		function is_void(name) {
-		    return void_element_names.test(name) || name.toLowerCase() === '!doctype';
-		}
-
-		const invalid_attribute_name_character = /[\s'">/=\u{FDD0}-\u{FDEF}\u{FFFE}\u{FFFF}\u{1FFFE}\u{1FFFF}\u{2FFFE}\u{2FFFF}\u{3FFFE}\u{3FFFF}\u{4FFFE}\u{4FFFF}\u{5FFFE}\u{5FFFF}\u{6FFFE}\u{6FFFF}\u{7FFFE}\u{7FFFF}\u{8FFFE}\u{8FFFF}\u{9FFFE}\u{9FFFF}\u{AFFFE}\u{AFFFF}\u{BFFFE}\u{BFFFF}\u{CFFFE}\u{CFFFF}\u{DFFFE}\u{DFFFF}\u{EFFFE}\u{EFFFF}\u{FFFFE}\u{FFFFF}\u{10FFFE}\u{10FFFF}]/u;
-		// https://html.spec.whatwg.org/multipage/syntax.html#attributes-2
-		// https://infra.spec.whatwg.org/#noncharacter
-		function spread(args, attrs_to_add) {
-		    const attributes = Object.assign({}, ...args);
-		    if (attrs_to_add) {
-		        const classes_to_add = attrs_to_add.classes;
-		        const styles_to_add = attrs_to_add.styles;
-		        if (classes_to_add) {
-		            if (attributes.class == null) {
-		                attributes.class = classes_to_add;
-		            }
-		            else {
-		                attributes.class += ' ' + classes_to_add;
-		            }
-		        }
-		        if (styles_to_add) {
-		            if (attributes.style == null) {
-		                attributes.style = style_object_to_string(styles_to_add);
-		            }
-		            else {
-		                attributes.style = style_object_to_string(merge_ssr_styles(attributes.style, styles_to_add));
-		            }
-		        }
-		    }
-		    let str = '';
-		    Object.keys(attributes).forEach(name => {
-		        if (invalid_attribute_name_character.test(name))
-		            return;
-		        const value = attributes[name];
-		        if (value === true)
-		            str += ' ' + name;
-		        else if (boolean_attributes.has(name.toLowerCase())) {
-		            if (value)
-		                str += ' ' + name;
-		        }
-		        else if (value != null) {
-		            str += ` ${name}="${value}"`;
-		        }
-		    });
-		    return str;
-		}
-		function merge_ssr_styles(style_attribute, style_directive) {
-		    const style_object = {};
-		    for (const individual_style of style_attribute.split(';')) {
-		        const colon_index = individual_style.indexOf(':');
-		        const name = individual_style.slice(0, colon_index).trim();
-		        const value = individual_style.slice(colon_index + 1).trim();
-		        if (!name)
-		            continue;
-		        style_object[name] = value;
-		    }
-		    for (const name in style_directive) {
-		        const value = style_directive[name];
-		        if (value) {
-		            style_object[name] = value;
-		        }
-		        else {
-		            delete style_object[name];
-		        }
-		    }
-		    return style_object;
-		}
-		const ATTR_REGEX = /[&"]/g;
-		const CONTENT_REGEX = /[&<]/g;
-		/**
-		 * Note: this method is performance sensitive and has been optimized
-		 * https://github.com/sveltejs/svelte/pull/5701
-		 */
-		function escape(value, is_attr = false) {
-		    const str = String(value);
-		    const pattern = is_attr ? ATTR_REGEX : CONTENT_REGEX;
-		    pattern.lastIndex = 0;
-		    let escaped = '';
-		    let last = 0;
-		    while (pattern.test(str)) {
-		        const i = pattern.lastIndex - 1;
-		        const ch = str[i];
-		        escaped += str.substring(last, i) + (ch === '&' ? '&amp;' : (ch === '"' ? '&quot;' : '&lt;'));
-		        last = i + 1;
-		    }
-		    return escaped + str.substring(last);
-		}
-		function escape_attribute_value(value) {
-		    // keep booleans, null, and undefined for the sake of `spread`
-		    const should_escape = typeof value === 'string' || (value && typeof value === 'object');
-		    return should_escape ? escape(value, true) : value;
-		}
-		function escape_object(obj) {
-		    const result = {};
-		    for (const key in obj) {
-		        result[key] = escape_attribute_value(obj[key]);
-		    }
-		    return result;
-		}
-		function each(items, fn) {
-		    let str = '';
-		    for (let i = 0; i < items.length; i += 1) {
-		        str += fn(items[i], i);
-		    }
-		    return str;
-		}
-		const missing_component = {
-		    $$render: () => ''
-		};
-		function validate_component(component, name) {
-		    if (!component || !component.$$render) {
-		        if (name === 'svelte:component')
-		            name += ' this={...}';
-		        throw new Error(`<${name}> is not a valid SSR component. You may need to review your build config to ensure that dependencies are compiled, rather than imported as pre-compiled modules. Otherwise you may need to fix a <${name}>.`);
-		    }
-		    return component;
-		}
-		function debug(file, line, column, values) {
-		    console.log(`{@debug} ${file ? file + ' ' : ''}(${line}:${column})`); // eslint-disable-line no-console
-		    console.log(values); // eslint-disable-line no-console
-		    return '';
-		}
-		let on_destroy;
-		function create_ssr_component(fn) {
-		    function $$render(result, props, bindings, slots, context) {
-		        const parent_component = exports.current_component;
-		        const $$ = {
-		            on_destroy,
-		            context: new Map(context || (parent_component ? parent_component.$$.context : [])),
-		            // these will be immediately discarded
-		            on_mount: [],
-		            before_update: [],
-		            after_update: [],
-		            callbacks: blank_object()
-		        };
-		        set_current_component({ $$ });
-		        const html = fn(result, props, bindings, slots);
-		        set_current_component(parent_component);
-		        return html;
-		    }
-		    return {
-		        render: (props = {}, { $$slots = {}, context = new Map() } = {}) => {
-		            on_destroy = [];
-		            const result = { title: '', head: '', css: new Set() };
-		            const html = $$render(result, props, {}, $$slots, context);
-		            run_all(on_destroy);
-		            return {
-		                html,
-		                css: {
-		                    code: Array.from(result.css).map(css => css.code).join('\n'),
-		                    map: null // TODO
-		                },
-		                head: result.title + result.head
-		            };
-		        },
-		        $$render
-		    };
-		}
-		function add_attribute(name, value, boolean) {
-		    if (value == null || (boolean && !value))
-		        return '';
-		    const assignment = (boolean && value === true) ? '' : `="${escape(value, true)}"`;
-		    return ` ${name}${assignment}`;
-		}
-		function add_classes(classes) {
-		    return classes ? ` class="${classes}"` : '';
-		}
-		function style_object_to_string(style_object) {
-		    return Object.keys(style_object)
-		        .filter(key => style_object[key])
-		        .map(key => `${key}: ${escape_attribute_value(style_object[key])};`)
-		        .join(' ');
-		}
-		function add_styles(style_object) {
-		    const styles = style_object_to_string(style_object);
-		    return styles ? ` style="${styles}"` : '';
-		}
-
-		function bind(component, name, callback) {
-		    const index = component.$$.props[name];
-		    if (index !== undefined) {
-		        component.$$.bound[index] = callback;
-		        callback(component.$$.ctx[index]);
-		    }
-		}
-		function create_component(block) {
-		    block && block.c();
-		}
-		function claim_component(block, parent_nodes) {
-		    block && block.l(parent_nodes);
-		}
-		function mount_component(component, target, anchor, customElement) {
-		    const { fragment, after_update } = component.$$;
-		    fragment && fragment.m(target, anchor);
-		    if (!customElement) {
-		        // onMount happens before the initial afterUpdate
-		        add_render_callback(() => {
-		            const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
-		            // if the component was destroyed immediately
-		            // it will update the `$$.on_destroy` reference to `null`.
-		            // the destructured on_destroy may still reference to the old array
-		            if (component.$$.on_destroy) {
-		                component.$$.on_destroy.push(...new_on_destroy);
-		            }
-		            else {
-		                // Edge case - component was destroyed immediately,
-		                // most likely as a result of a binding initialising
-		                run_all(new_on_destroy);
-		            }
-		            component.$$.on_mount = [];
-		        });
-		    }
-		    after_update.forEach(add_render_callback);
-		}
-		function destroy_component(component, detaching) {
-		    const $$ = component.$$;
-		    if ($$.fragment !== null) {
-		        flush_render_callbacks($$.after_update);
-		        run_all($$.on_destroy);
-		        $$.fragment && $$.fragment.d(detaching);
-		        // TODO null out other refs, including component.$$ (but need to
-		        // preserve final state?)
-		        $$.on_destroy = $$.fragment = null;
-		        $$.ctx = [];
-		    }
-		}
-		function make_dirty(component, i) {
-		    if (component.$$.dirty[0] === -1) {
-		        dirty_components.push(component);
-		        schedule_update();
-		        component.$$.dirty.fill(0);
-		    }
-		    component.$$.dirty[(i / 31) | 0] |= (1 << (i % 31));
-		}
-		function init(component, options, instance, create_fragment, not_equal, props, append_styles, dirty = [-1]) {
-		    const parent_component = exports.current_component;
-		    set_current_component(component);
-		    const $$ = component.$$ = {
-		        fragment: null,
-		        ctx: [],
-		        // state
-		        props,
-		        update: noop,
-		        not_equal,
-		        bound: blank_object(),
-		        // lifecycle
-		        on_mount: [],
-		        on_destroy: [],
-		        on_disconnect: [],
-		        before_update: [],
-		        after_update: [],
-		        context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
-		        // everything else
-		        callbacks: blank_object(),
-		        dirty,
-		        skip_bound: false,
-		        root: options.target || parent_component.$$.root
-		    };
-		    append_styles && append_styles($$.root);
-		    let ready = false;
-		    $$.ctx = instance
-		        ? instance(component, options.props || {}, (i, ret, ...rest) => {
-		            const value = rest.length ? rest[0] : ret;
-		            if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
-		                if (!$$.skip_bound && $$.bound[i])
-		                    $$.bound[i](value);
-		                if (ready)
-		                    make_dirty(component, i);
-		            }
-		            return ret;
-		        })
-		        : [];
-		    $$.update();
-		    ready = true;
-		    run_all($$.before_update);
-		    // `false` as a special case of no DOM component
-		    $$.fragment = create_fragment ? create_fragment($$.ctx) : false;
-		    if (options.target) {
-		        if (options.hydrate) {
-		            start_hydrating();
-		            const nodes = children(options.target);
-		            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		            $$.fragment && $$.fragment.l(nodes);
-		            nodes.forEach(detach);
-		        }
-		        else {
-		            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-		            $$.fragment && $$.fragment.c();
-		        }
-		        if (options.intro)
-		            transition_in(component.$$.fragment);
-		        mount_component(component, options.target, options.anchor, options.customElement);
-		        end_hydrating();
-		        flush();
-		    }
-		    set_current_component(parent_component);
-		}
-		if (typeof HTMLElement === 'function') {
-		    exports.SvelteElement = class extends HTMLElement {
-		        constructor() {
-		            super();
-		            this.attachShadow({ mode: 'open' });
-		        }
-		        connectedCallback() {
-		            const { on_mount } = this.$$;
-		            this.$$.on_disconnect = on_mount.map(run).filter(is_function);
-		            // @ts-ignore todo: improve typings
-		            for (const key in this.$$.slotted) {
-		                // @ts-ignore todo: improve typings
-		                this.appendChild(this.$$.slotted[key]);
-		            }
-		        }
-		        attributeChangedCallback(attr, _oldValue, newValue) {
-		            this[attr] = newValue;
-		        }
-		        disconnectedCallback() {
-		            run_all(this.$$.on_disconnect);
-		        }
-		        $destroy() {
-		            destroy_component(this, 1);
-		            this.$destroy = noop;
-		        }
-		        $on(type, callback) {
-		            // TODO should this delegate to addEventListener?
-		            if (!is_function(callback)) {
-		                return noop;
-		            }
-		            const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
-		            callbacks.push(callback);
-		            return () => {
-		                const index = callbacks.indexOf(callback);
-		                if (index !== -1)
-		                    callbacks.splice(index, 1);
-		            };
-		        }
-		        $set($$props) {
-		            if (this.$$set && !is_empty($$props)) {
-		                this.$$.skip_bound = true;
-		                this.$$set($$props);
-		                this.$$.skip_bound = false;
-		            }
-		        }
-		    };
-		}
-		/**
-		 * Base class for Svelte components. Used when dev=false.
-		 */
-		class SvelteComponent {
-		    $destroy() {
-		        destroy_component(this, 1);
-		        this.$destroy = noop;
-		    }
-		    $on(type, callback) {
-		        if (!is_function(callback)) {
-		            return noop;
-		        }
-		        const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
-		        callbacks.push(callback);
-		        return () => {
-		            const index = callbacks.indexOf(callback);
-		            if (index !== -1)
-		                callbacks.splice(index, 1);
-		        };
-		    }
-		    $set($$props) {
-		        if (this.$$set && !is_empty($$props)) {
-		            this.$$.skip_bound = true;
-		            this.$$set($$props);
-		            this.$$.skip_bound = false;
-		        }
-		    }
-		}
-
-		function dispatch_dev(type, detail) {
-		    document.dispatchEvent(custom_event(type, Object.assign({ version: '3.59.2' }, detail), { bubbles: true }));
-		}
-		function append_dev(target, node) {
-		    dispatch_dev('SvelteDOMInsert', { target, node });
-		    append(target, node);
-		}
-		function append_hydration_dev(target, node) {
-		    dispatch_dev('SvelteDOMInsert', { target, node });
-		    append_hydration(target, node);
-		}
-		function insert_dev(target, node, anchor) {
-		    dispatch_dev('SvelteDOMInsert', { target, node, anchor });
-		    insert(target, node, anchor);
-		}
-		function insert_hydration_dev(target, node, anchor) {
-		    dispatch_dev('SvelteDOMInsert', { target, node, anchor });
-		    insert_hydration(target, node, anchor);
-		}
-		function detach_dev(node) {
-		    dispatch_dev('SvelteDOMRemove', { node });
-		    detach(node);
-		}
-		function detach_between_dev(before, after) {
-		    while (before.nextSibling && before.nextSibling !== after) {
-		        detach_dev(before.nextSibling);
-		    }
-		}
-		function detach_before_dev(after) {
-		    while (after.previousSibling) {
-		        detach_dev(after.previousSibling);
-		    }
-		}
-		function detach_after_dev(before) {
-		    while (before.nextSibling) {
-		        detach_dev(before.nextSibling);
-		    }
-		}
-		function listen_dev(node, event, handler, options, has_prevent_default, has_stop_propagation, has_stop_immediate_propagation) {
-		    const modifiers = options === true ? ['capture'] : options ? Array.from(Object.keys(options)) : [];
-		    if (has_prevent_default)
-		        modifiers.push('preventDefault');
-		    if (has_stop_propagation)
-		        modifiers.push('stopPropagation');
-		    if (has_stop_immediate_propagation)
-		        modifiers.push('stopImmediatePropagation');
-		    dispatch_dev('SvelteDOMAddEventListener', { node, event, handler, modifiers });
-		    const dispose = listen(node, event, handler, options);
-		    return () => {
-		        dispatch_dev('SvelteDOMRemoveEventListener', { node, event, handler, modifiers });
-		        dispose();
-		    };
-		}
-		function attr_dev(node, attribute, value) {
-		    attr(node, attribute, value);
-		    if (value == null)
-		        dispatch_dev('SvelteDOMRemoveAttribute', { node, attribute });
-		    else
-		        dispatch_dev('SvelteDOMSetAttribute', { node, attribute, value });
-		}
-		function prop_dev(node, property, value) {
-		    node[property] = value;
-		    dispatch_dev('SvelteDOMSetProperty', { node, property, value });
-		}
-		function dataset_dev(node, property, value) {
-		    node.dataset[property] = value;
-		    dispatch_dev('SvelteDOMSetDataset', { node, property, value });
-		}
-		function set_data_dev(text, data) {
-		    data = '' + data;
-		    if (text.data === data)
-		        return;
-		    dispatch_dev('SvelteDOMSetData', { node: text, data });
-		    text.data = data;
-		}
-		function set_data_contenteditable_dev(text, data) {
-		    data = '' + data;
-		    if (text.wholeText === data)
-		        return;
-		    dispatch_dev('SvelteDOMSetData', { node: text, data });
-		    text.data = data;
-		}
-		function set_data_maybe_contenteditable_dev(text, data, attr_value) {
-		    if (~contenteditable_truthy_values.indexOf(attr_value)) {
-		        set_data_contenteditable_dev(text, data);
-		    }
-		    else {
-		        set_data_dev(text, data);
-		    }
-		}
-		function validate_each_argument(arg) {
-		    if (typeof arg !== 'string' && !(arg && typeof arg === 'object' && 'length' in arg)) {
-		        let msg = '{#each} only iterates over array-like objects.';
-		        if (typeof Symbol === 'function' && arg && Symbol.iterator in arg) {
-		            msg += ' You can use a spread to convert this iterable into an array.';
-		        }
-		        throw new Error(msg);
-		    }
-		}
-		function validate_slots(name, slot, keys) {
-		    for (const slot_key of Object.keys(slot)) {
-		        if (!~keys.indexOf(slot_key)) {
-		            console.warn(`<${name}> received an unexpected slot "${slot_key}".`);
-		        }
-		    }
-		}
-		function validate_dynamic_element(tag) {
-		    const is_string = typeof tag === 'string';
-		    if (tag && !is_string) {
-		        throw new Error('<svelte:element> expects "this" attribute to be a string.');
-		    }
-		}
-		function validate_void_dynamic_element(tag) {
-		    if (tag && is_void(tag)) {
-		        console.warn(`<svelte:element this="${tag}"> is self-closing and cannot have content.`);
-		    }
-		}
-		function construct_svelte_component_dev(component, props) {
-		    const error_message = 'this={...} of <svelte:component> should specify a Svelte component.';
-		    try {
-		        const instance = new component(props);
-		        if (!instance.$$ || !instance.$set || !instance.$on || !instance.$destroy) {
-		            throw new Error(error_message);
-		        }
-		        return instance;
-		    }
-		    catch (err) {
-		        const { message } = err;
-		        if (typeof message === 'string' && message.indexOf('is not a constructor') !== -1) {
-		            throw new Error(error_message);
-		        }
-		        else {
-		            throw err;
-		        }
-		    }
-		}
-		/**
-		 * Base class for Svelte components with some minor dev-enhancements. Used when dev=true.
-		 */
-		class SvelteComponentDev extends SvelteComponent {
-		    constructor(options) {
-		        if (!options || (!options.target && !options.$$inline)) {
-		            throw new Error("'target' is a required option");
-		        }
-		        super();
-		    }
-		    $destroy() {
-		        super.$destroy();
-		        this.$destroy = () => {
-		            console.warn('Component was already destroyed'); // eslint-disable-line no-console
-		        };
-		    }
-		    $capture_state() { }
-		    $inject_state() { }
-		}
-		/**
-		 * Base class to create strongly typed Svelte components.
-		 * This only exists for typing purposes and should be used in `.d.ts` files.
-		 *
-		 * ### Example:
-		 *
-		 * You have component library on npm called `component-library`, from which
-		 * you export a component called `MyComponent`. For Svelte+TypeScript users,
-		 * you want to provide typings. Therefore you create a `index.d.ts`:
-		 * ```ts
-		 * import { SvelteComponentTyped } from "svelte";
-		 * export class MyComponent extends SvelteComponentTyped<{foo: string}> {}
-		 * ```
-		 * Typing this makes it possible for IDEs like VS Code with the Svelte extension
-		 * to provide intellisense and to use the component like this in a Svelte file
-		 * with TypeScript:
-		 * ```svelte
-		 * <script lang="ts">
-		 * 	import { MyComponent } from "component-library";
-		 * </script>
-		 * <MyComponent foo={'bar'} />
-		 * ```
-		 *
-		 * #### Why not make this part of `SvelteComponent(Dev)`?
-		 * Because
-		 * ```ts
-		 * class ASubclassOfSvelteComponent extends SvelteComponent<{foo: string}> {}
-		 * const component: typeof SvelteComponent = ASubclassOfSvelteComponent;
-		 * ```
-		 * will throw a type error, so we need to separate the more strictly typed class.
-		 */
-		class SvelteComponentTyped extends SvelteComponentDev {
-		    constructor(options) {
-		        super(options);
-		    }
-		}
-		function loop_guard(timeout) {
-		    const start = Date.now();
-		    return () => {
-		        if (Date.now() - start > timeout) {
-		            throw new Error('Infinite loop detected');
-		        }
-		    };
-		}
-
-		exports.HtmlTag = HtmlTag;
-		exports.HtmlTagHydration = HtmlTagHydration;
-		exports.ResizeObserverSingleton = ResizeObserverSingleton;
-		exports.SvelteComponent = SvelteComponent;
-		exports.SvelteComponentDev = SvelteComponentDev;
-		exports.SvelteComponentTyped = SvelteComponentTyped;
-		exports.action_destroyer = action_destroyer;
-		exports.add_attribute = add_attribute;
-		exports.add_classes = add_classes;
-		exports.add_flush_callback = add_flush_callback;
-		exports.add_iframe_resize_listener = add_iframe_resize_listener;
-		exports.add_location = add_location;
-		exports.add_render_callback = add_render_callback;
-		exports.add_styles = add_styles;
-		exports.add_transform = add_transform;
-		exports.afterUpdate = afterUpdate;
-		exports.append = append;
-		exports.append_dev = append_dev;
-		exports.append_empty_stylesheet = append_empty_stylesheet;
-		exports.append_hydration = append_hydration;
-		exports.append_hydration_dev = append_hydration_dev;
-		exports.append_styles = append_styles;
-		exports.assign = assign;
-		exports.attr = attr;
-		exports.attr_dev = attr_dev;
-		exports.attribute_to_object = attribute_to_object;
-		exports.beforeUpdate = beforeUpdate;
-		exports.bind = bind;
-		exports.binding_callbacks = binding_callbacks;
-		exports.blank_object = blank_object;
-		exports.bubble = bubble;
-		exports.check_outros = check_outros;
-		exports.children = children;
-		exports.claim_comment = claim_comment;
-		exports.claim_component = claim_component;
-		exports.claim_element = claim_element;
-		exports.claim_html_tag = claim_html_tag;
-		exports.claim_space = claim_space;
-		exports.claim_svg_element = claim_svg_element;
-		exports.claim_text = claim_text;
-		exports.clear_loops = clear_loops;
-		exports.comment = comment;
-		exports.component_subscribe = component_subscribe;
-		exports.compute_rest_props = compute_rest_props;
-		exports.compute_slots = compute_slots;
-		exports.construct_svelte_component = construct_svelte_component;
-		exports.construct_svelte_component_dev = construct_svelte_component_dev;
-		exports.contenteditable_truthy_values = contenteditable_truthy_values;
-		exports.createEventDispatcher = createEventDispatcher;
-		exports.create_animation = create_animation;
-		exports.create_bidirectional_transition = create_bidirectional_transition;
-		exports.create_component = create_component;
-		exports.create_in_transition = create_in_transition;
-		exports.create_out_transition = create_out_transition;
-		exports.create_slot = create_slot;
-		exports.create_ssr_component = create_ssr_component;
-		exports.custom_event = custom_event;
-		exports.dataset_dev = dataset_dev;
-		exports.debug = debug;
-		exports.destroy_block = destroy_block;
-		exports.destroy_component = destroy_component;
-		exports.destroy_each = destroy_each;
-		exports.detach = detach;
-		exports.detach_after_dev = detach_after_dev;
-		exports.detach_before_dev = detach_before_dev;
-		exports.detach_between_dev = detach_between_dev;
-		exports.detach_dev = detach_dev;
-		exports.dirty_components = dirty_components;
-		exports.dispatch_dev = dispatch_dev;
-		exports.each = each;
-		exports.element = element;
-		exports.element_is = element_is;
-		exports.empty = empty;
-		exports.end_hydrating = end_hydrating;
-		exports.escape = escape;
-		exports.escape_attribute_value = escape_attribute_value;
-		exports.escape_object = escape_object;
-		exports.exclude_internal_props = exclude_internal_props;
-		exports.fix_and_destroy_block = fix_and_destroy_block;
-		exports.fix_and_outro_and_destroy_block = fix_and_outro_and_destroy_block;
-		exports.fix_position = fix_position;
-		exports.flush = flush;
-		exports.flush_render_callbacks = flush_render_callbacks;
-		exports.getAllContexts = getAllContexts;
-		exports.getContext = getContext;
-		exports.get_all_dirty_from_scope = get_all_dirty_from_scope;
-		exports.get_binding_group_value = get_binding_group_value;
-		exports.get_current_component = get_current_component;
-		exports.get_custom_elements_slots = get_custom_elements_slots;
-		exports.get_root_for_style = get_root_for_style;
-		exports.get_slot_changes = get_slot_changes;
-		exports.get_spread_object = get_spread_object;
-		exports.get_spread_update = get_spread_update;
-		exports.get_store_value = get_store_value;
-		exports.globals = globals;
-		exports.group_outros = group_outros;
-		exports.handle_promise = handle_promise;
-		exports.hasContext = hasContext;
-		exports.has_prop = has_prop;
-		exports.head_selector = head_selector;
-		exports.identity = identity;
-		exports.init = init;
-		exports.init_binding_group = init_binding_group;
-		exports.init_binding_group_dynamic = init_binding_group_dynamic;
-		exports.insert = insert;
-		exports.insert_dev = insert_dev;
-		exports.insert_hydration = insert_hydration;
-		exports.insert_hydration_dev = insert_hydration_dev;
-		exports.intros = intros;
-		exports.invalid_attribute_name_character = invalid_attribute_name_character;
-		exports.is_client = is_client;
-		exports.is_crossorigin = is_crossorigin;
-		exports.is_empty = is_empty;
-		exports.is_function = is_function;
-		exports.is_promise = is_promise;
-		exports.is_void = is_void;
-		exports.listen = listen;
-		exports.listen_dev = listen_dev;
-		exports.loop = loop;
-		exports.loop_guard = loop_guard;
-		exports.merge_ssr_styles = merge_ssr_styles;
-		exports.missing_component = missing_component;
-		exports.mount_component = mount_component;
-		exports.noop = noop;
-		exports.not_equal = not_equal;
-		exports.null_to_empty = null_to_empty;
-		exports.object_without_properties = object_without_properties;
-		exports.onDestroy = onDestroy;
-		exports.onMount = onMount;
-		exports.once = once;
-		exports.outro_and_destroy_block = outro_and_destroy_block;
-		exports.prevent_default = prevent_default;
-		exports.prop_dev = prop_dev;
-		exports.query_selector_all = query_selector_all;
-		exports.resize_observer_border_box = resize_observer_border_box;
-		exports.resize_observer_content_box = resize_observer_content_box;
-		exports.resize_observer_device_pixel_content_box = resize_observer_device_pixel_content_box;
-		exports.run = run;
-		exports.run_all = run_all;
-		exports.safe_not_equal = safe_not_equal;
-		exports.schedule_update = schedule_update;
-		exports.select_multiple_value = select_multiple_value;
-		exports.select_option = select_option;
-		exports.select_options = select_options;
-		exports.select_value = select_value;
-		exports.self = self;
-		exports.setContext = setContext;
-		exports.set_attributes = set_attributes;
-		exports.set_current_component = set_current_component;
-		exports.set_custom_element_data = set_custom_element_data;
-		exports.set_custom_element_data_map = set_custom_element_data_map;
-		exports.set_data = set_data;
-		exports.set_data_contenteditable = set_data_contenteditable;
-		exports.set_data_contenteditable_dev = set_data_contenteditable_dev;
-		exports.set_data_dev = set_data_dev;
-		exports.set_data_maybe_contenteditable = set_data_maybe_contenteditable;
-		exports.set_data_maybe_contenteditable_dev = set_data_maybe_contenteditable_dev;
-		exports.set_dynamic_element_data = set_dynamic_element_data;
-		exports.set_input_type = set_input_type;
-		exports.set_input_value = set_input_value;
-		exports.set_now = set_now;
-		exports.set_raf = set_raf;
-		exports.set_store_value = set_store_value;
-		exports.set_style = set_style;
-		exports.set_svg_attributes = set_svg_attributes;
-		exports.space = space;
-		exports.split_css_unit = split_css_unit;
-		exports.spread = spread;
-		exports.src_url_equal = src_url_equal;
-		exports.start_hydrating = start_hydrating;
-		exports.stop_immediate_propagation = stop_immediate_propagation;
-		exports.stop_propagation = stop_propagation;
-		exports.subscribe = subscribe;
-		exports.svg_element = svg_element;
-		exports.text = text;
-		exports.tick = tick;
-		exports.time_ranges_to_array = time_ranges_to_array;
-		exports.to_number = to_number;
-		exports.toggle_class = toggle_class;
-		exports.transition_in = transition_in;
-		exports.transition_out = transition_out;
-		exports.trusted = trusted;
-		exports.update_await_block_branch = update_await_block_branch;
-		exports.update_keyed_each = update_keyed_each;
-		exports.update_slot = update_slot;
-		exports.update_slot_base = update_slot_base;
-		exports.validate_component = validate_component;
-		exports.validate_dynamic_element = validate_dynamic_element;
-		exports.validate_each_argument = validate_each_argument;
-		exports.validate_each_keys = validate_each_keys;
-		exports.validate_slots = validate_slots;
-		exports.validate_store = validate_store;
-		exports.validate_void_dynamic_element = validate_void_dynamic_element;
-		exports.xlink_attr = xlink_attr; 
-	} (internal));
-
-	(function (exports) {
-
-		Object.defineProperty(exports, '__esModule', { value: true });
-
-		var internal$1 = internal;
-
-		const subscriber_queue = [];
-		/**
-		 * Creates a `Readable` store that allows reading by subscription.
-		 * @param value initial value
-		 * @param {StartStopNotifier} [start]
-		 */
-		function readable(value, start) {
-		    return {
-		        subscribe: writable(value, start).subscribe
-		    };
-		}
-		/**
-		 * Create a `Writable` store that allows both updating and reading by subscription.
-		 * @param {*=}value initial value
-		 * @param {StartStopNotifier=} start
-		 */
-		function writable(value, start = internal$1.noop) {
-		    let stop;
-		    const subscribers = new Set();
-		    function set(new_value) {
-		        if (internal$1.safe_not_equal(value, new_value)) {
-		            value = new_value;
-		            if (stop) { // store is ready
-		                const run_queue = !subscriber_queue.length;
-		                for (const subscriber of subscribers) {
-		                    subscriber[1]();
-		                    subscriber_queue.push(subscriber, value);
-		                }
-		                if (run_queue) {
-		                    for (let i = 0; i < subscriber_queue.length; i += 2) {
-		                        subscriber_queue[i][0](subscriber_queue[i + 1]);
-		                    }
-		                    subscriber_queue.length = 0;
-		                }
-		            }
-		        }
-		    }
-		    function update(fn) {
-		        set(fn(value));
-		    }
-		    function subscribe(run, invalidate = internal$1.noop) {
-		        const subscriber = [run, invalidate];
-		        subscribers.add(subscriber);
-		        if (subscribers.size === 1) {
-		            stop = start(set) || internal$1.noop;
-		        }
-		        run(value);
-		        return () => {
-		            subscribers.delete(subscriber);
-		            if (subscribers.size === 0 && stop) {
-		                stop();
-		                stop = null;
-		            }
-		        };
-		    }
-		    return { set, update, subscribe };
-		}
-		function derived(stores, fn, initial_value) {
-		    const single = !Array.isArray(stores);
-		    const stores_array = single
-		        ? [stores]
-		        : stores;
-		    const auto = fn.length < 2;
-		    return readable(initial_value, (set) => {
-		        let started = false;
-		        const values = [];
-		        let pending = 0;
-		        let cleanup = internal$1.noop;
-		        const sync = () => {
-		            if (pending) {
-		                return;
-		            }
-		            cleanup();
-		            const result = fn(single ? values[0] : values, set);
-		            if (auto) {
-		                set(result);
-		            }
-		            else {
-		                cleanup = internal$1.is_function(result) ? result : internal$1.noop;
-		            }
-		        };
-		        const unsubscribers = stores_array.map((store, i) => internal$1.subscribe(store, (value) => {
-		            values[i] = value;
-		            pending &= ~(1 << i);
-		            if (started) {
-		                sync();
-		            }
-		        }, () => {
-		            pending |= (1 << i);
-		        }));
-		        started = true;
-		        sync();
-		        return function stop() {
-		            internal$1.run_all(unsubscribers);
-		            cleanup();
-		            // We need to set this to false because callbacks can still happen despite having unsubscribed:
-		            // Callbacks might already be placed in the queue which doesn't know it should no longer
-		            // invoke this derived store.
-		            started = false;
-		        };
-		    });
-		}
-		/**
-		 * Takes a store and returns a new one derived from the old one that is readable.
-		 *
-		 * @param store - store to make readonly
-		 */
-		function readonly(store) {
-		    return {
-		        subscribe: store.subscribe.bind(store)
-		    };
-		}
-
-		Object.defineProperty(exports, 'get', {
-			enumerable: true,
-			get: function () {
-				return internal$1.get_store_value;
-			}
-		});
-		exports.derived = derived;
-		exports.readable = readable;
-		exports.readonly = readonly;
-		exports.writable = writable; 
-	} (store));
-
-	function noop() { }
+	/**
+	 * @template T
+	 * @template S
+	 * @param {T} tar
+	 * @param {S} src
+	 * @returns {T & S}
+	 */
 	function assign(tar, src) {
-	    // @ts-ignore
-	    for (const k in src)
-	        tar[k] = src[k];
-	    return tar;
+		// @ts-ignore
+		for (const k in src) tar[k] = src[k];
+		return /** @type {T & S} */ (tar);
 	}
+
+	/** @returns {void} */
 	function add_location(element, file, line, column, char) {
-	    element.__svelte_meta = {
-	        loc: { file, line, column, char }
-	    };
+		element.__svelte_meta = {
+			loc: { file, line, column, char }
+		};
 	}
+
 	function run(fn) {
-	    return fn();
+		return fn();
 	}
+
 	function blank_object() {
-	    return Object.create(null);
+		return Object.create(null);
 	}
+
+	/**
+	 * @param {Function[]} fns
+	 * @returns {void}
+	 */
 	function run_all(fns) {
-	    fns.forEach(run);
+		fns.forEach(run);
 	}
+
+	/**
+	 * @param {any} thing
+	 * @returns {thing is Function}
+	 */
 	function is_function(thing) {
-	    return typeof thing === 'function';
+		return typeof thing === 'function';
 	}
+
+	/** @returns {boolean} */
 	function safe_not_equal(a, b) {
-	    return a != a ? b == b : a !== b || ((a && typeof a === 'object') || typeof a === 'function');
+		return a != a ? b == b : a !== b || (a && typeof a === 'object') || typeof a === 'function';
 	}
+
+	/** @returns {boolean} */
 	function is_empty(obj) {
-	    return Object.keys(obj).length === 0;
+		return Object.keys(obj).length === 0;
 	}
+
+	/** @returns {void} */
 	function validate_store(store, name) {
-	    if (store != null && typeof store.subscribe !== 'function') {
-	        throw new Error(`'${name}' is not a store with a 'subscribe' method`);
-	    }
+		if (store != null && typeof store.subscribe !== 'function') {
+			throw new Error(`'${name}' is not a store with a 'subscribe' method`);
+		}
 	}
+
 	function subscribe(store, ...callbacks) {
-	    if (store == null) {
-	        return noop;
-	    }
-	    const unsub = store.subscribe(...callbacks);
-	    return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
+		if (store == null) {
+			for (const callback of callbacks) {
+				callback(undefined);
+			}
+			return noop;
+		}
+		const unsub = store.subscribe(...callbacks);
+		return unsub.unsubscribe ? () => unsub.unsubscribe() : unsub;
 	}
+
+	/**
+	 * Get the current value from a store by subscribing and immediately unsubscribing.
+	 *
+	 * https://svelte.dev/docs/svelte-store#get
+	 * @template T
+	 * @param {import('../store/public.js').Readable<T>} store
+	 * @returns {T}
+	 */
 	function get_store_value(store) {
-	    let value;
-	    subscribe(store, _ => value = _)();
-	    return value;
+		let value;
+		subscribe(store, (_) => (value = _))();
+		return value;
 	}
+
+	/** @returns {void} */
 	function component_subscribe(component, store, callback) {
-	    component.$$.on_destroy.push(subscribe(store, callback));
+		component.$$.on_destroy.push(subscribe(store, callback));
 	}
+
 	function create_slot(definition, ctx, $$scope, fn) {
-	    if (definition) {
-	        const slot_ctx = get_slot_context(definition, ctx, $$scope, fn);
-	        return definition[0](slot_ctx);
-	    }
+		if (definition) {
+			const slot_ctx = get_slot_context(definition, ctx, $$scope, fn);
+			return definition[0](slot_ctx);
+		}
 	}
+
 	function get_slot_context(definition, ctx, $$scope, fn) {
-	    return definition[1] && fn
-	        ? assign($$scope.ctx.slice(), definition[1](fn(ctx)))
-	        : $$scope.ctx;
+		return definition[1] && fn ? assign($$scope.ctx.slice(), definition[1](fn(ctx))) : $$scope.ctx;
 	}
+
 	function get_slot_changes(definition, $$scope, dirty, fn) {
-	    if (definition[2] && fn) {
-	        const lets = definition[2](fn(dirty));
-	        if ($$scope.dirty === undefined) {
-	            return lets;
-	        }
-	        if (typeof lets === 'object') {
-	            const merged = [];
-	            const len = Math.max($$scope.dirty.length, lets.length);
-	            for (let i = 0; i < len; i += 1) {
-	                merged[i] = $$scope.dirty[i] | lets[i];
-	            }
-	            return merged;
-	        }
-	        return $$scope.dirty | lets;
-	    }
-	    return $$scope.dirty;
+		if (definition[2] && fn) {
+			const lets = definition[2](fn(dirty));
+			if ($$scope.dirty === undefined) {
+				return lets;
+			}
+			if (typeof lets === 'object') {
+				const merged = [];
+				const len = Math.max($$scope.dirty.length, lets.length);
+				for (let i = 0; i < len; i += 1) {
+					merged[i] = $$scope.dirty[i] | lets[i];
+				}
+				return merged;
+			}
+			return $$scope.dirty | lets;
+		}
+		return $$scope.dirty;
 	}
-	function update_slot_base(slot, slot_definition, ctx, $$scope, slot_changes, get_slot_context_fn) {
-	    if (slot_changes) {
-	        const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
-	        slot.p(slot_context, slot_changes);
-	    }
+
+	/** @returns {void} */
+	function update_slot_base(
+		slot,
+		slot_definition,
+		ctx,
+		$$scope,
+		slot_changes,
+		get_slot_context_fn
+	) {
+		if (slot_changes) {
+			const slot_context = get_slot_context(slot_definition, ctx, $$scope, get_slot_context_fn);
+			slot.p(slot_context, slot_changes);
+		}
 	}
+
+	/** @returns {any[] | -1} */
 	function get_all_dirty_from_scope($$scope) {
-	    if ($$scope.ctx.length > 32) {
-	        const dirty = [];
-	        const length = $$scope.ctx.length / 32;
-	        for (let i = 0; i < length; i++) {
-	            dirty[i] = -1;
-	        }
-	        return dirty;
-	    }
-	    return -1;
+		if ($$scope.ctx.length > 32) {
+			const dirty = [];
+			const length = $$scope.ctx.length / 32;
+			for (let i = 0; i < length; i++) {
+				dirty[i] = -1;
+			}
+			return dirty;
+		}
+		return -1;
 	}
+
+	/** @returns {{}} */
 	function exclude_internal_props(props) {
-	    const result = {};
-	    for (const k in props)
-	        if (k[0] !== '$')
-	            result[k] = props[k];
-	    return result;
+		const result = {};
+		for (const k in props) if (k[0] !== '$') result[k] = props[k];
+		return result;
 	}
+
+	/** @returns {{}} */
 	function compute_rest_props(props, keys) {
-	    const rest = {};
-	    keys = new Set(keys);
-	    for (const k in props)
-	        if (!keys.has(k) && k[0] !== '$')
-	            rest[k] = props[k];
-	    return rest;
+		const rest = {};
+		keys = new Set(keys);
+		for (const k in props) if (!keys.has(k) && k[0] !== '$') rest[k] = props[k];
+		return rest;
 	}
+
 	function action_destroyer(action_result) {
-	    return action_result && is_function(action_result.destroy) ? action_result.destroy : noop;
+		return action_result && is_function(action_result.destroy) ? action_result.destroy : noop;
 	}
 
 	const is_client = typeof window !== 'undefined';
-	let now$1 = is_client
-	    ? () => window.performance.now()
-	    : () => Date.now();
-	let raf = is_client ? cb => requestAnimationFrame(cb) : noop;
+
+	/** @type {() => number} */
+	let now$1 = is_client ? () => window.performance.now() : () => Date.now();
+
+	let raf = is_client ? (cb) => requestAnimationFrame(cb) : noop;
 
 	const tasks = new Set();
+
+	/**
+	 * @param {number} now
+	 * @returns {void}
+	 */
 	function run_tasks(now) {
-	    tasks.forEach(task => {
-	        if (!task.c(now)) {
-	            tasks.delete(task);
-	            task.f();
-	        }
-	    });
-	    if (tasks.size !== 0)
-	        raf(run_tasks);
+		tasks.forEach((task) => {
+			if (!task.c(now)) {
+				tasks.delete(task);
+				task.f();
+			}
+		});
+		if (tasks.size !== 0) raf(run_tasks);
 	}
+
 	/**
 	 * Creates a new task that runs on each raf frame
 	 * until it returns a falsy value or is aborted
+	 * @param {import('./private.js').TaskCallback} callback
+	 * @returns {import('./private.js').Task}
 	 */
 	function loop(callback) {
-	    let task;
-	    if (tasks.size === 0)
-	        raf(run_tasks);
-	    return {
-	        promise: new Promise(fulfill => {
-	            tasks.add(task = { c: callback, f: fulfill });
-	        }),
-	        abort() {
-	            tasks.delete(task);
-	        }
-	    };
-	}
-	function append(target, node) {
-	    target.appendChild(node);
-	}
-	function insert(target, node, anchor) {
-	    target.insertBefore(node, anchor || null);
-	}
-	function detach(node) {
-	    if (node.parentNode) {
-	        node.parentNode.removeChild(node);
-	    }
-	}
-	function destroy_each(iterations, detaching) {
-	    for (let i = 0; i < iterations.length; i += 1) {
-	        if (iterations[i])
-	            iterations[i].d(detaching);
-	    }
-	}
-	function element(name) {
-	    return document.createElement(name);
-	}
-	function text(data) {
-	    return document.createTextNode(data);
-	}
-	function space() {
-	    return text(' ');
-	}
-	function empty() {
-	    return text('');
-	}
-	function attr(node, attribute, value) {
-	    if (value == null)
-	        node.removeAttribute(attribute);
-	    else if (node.getAttribute(attribute) !== value)
-	        node.setAttribute(attribute, value);
-	}
-	function children(element) {
-	    return Array.from(element.childNodes);
-	}
-	function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
-	    const e = document.createEvent('CustomEvent');
-	    e.initCustomEvent(type, bubbles, cancelable, detail);
-	    return e;
+		/** @type {import('./private.js').TaskEntry} */
+		let task;
+		if (tasks.size === 0) raf(run_tasks);
+		return {
+			promise: new Promise((fulfill) => {
+				tasks.add((task = { c: callback, f: fulfill }));
+			}),
+			abort() {
+				tasks.delete(task);
+			}
+		};
 	}
 
+	/**
+	 * @param {Node} target
+	 * @param {Node} node
+	 * @returns {void}
+	 */
+	function append(target, node) {
+		target.appendChild(node);
+	}
+
+	/**
+	 * @param {Node} target
+	 * @param {Node} node
+	 * @param {Node} [anchor]
+	 * @returns {void}
+	 */
+	function insert(target, node, anchor) {
+		target.insertBefore(node, anchor || null);
+	}
+
+	/**
+	 * @param {Node} node
+	 * @returns {void}
+	 */
+	function detach(node) {
+		if (node.parentNode) {
+			node.parentNode.removeChild(node);
+		}
+	}
+
+	/**
+	 * @returns {void} */
+	function destroy_each(iterations, detaching) {
+		for (let i = 0; i < iterations.length; i += 1) {
+			if (iterations[i]) iterations[i].d(detaching);
+		}
+	}
+
+	/**
+	 * @template {keyof HTMLElementTagNameMap} K
+	 * @param {K} name
+	 * @returns {HTMLElementTagNameMap[K]}
+	 */
+	function element(name) {
+		return document.createElement(name);
+	}
+
+	/**
+	 * @param {string} data
+	 * @returns {Text}
+	 */
+	function text(data) {
+		return document.createTextNode(data);
+	}
+
+	/**
+	 * @returns {Text} */
+	function space() {
+		return text(' ');
+	}
+
+	/**
+	 * @returns {Text} */
+	function empty() {
+		return text('');
+	}
+
+	/**
+	 * @param {Element} node
+	 * @param {string} attribute
+	 * @param {string} [value]
+	 * @returns {void}
+	 */
+	function attr(node, attribute, value) {
+		if (value == null) node.removeAttribute(attribute);
+		else if (node.getAttribute(attribute) !== value) node.setAttribute(attribute, value);
+	}
+
+	/**
+	 * @param {Element} element
+	 * @returns {ChildNode[]}
+	 */
+	function children(element) {
+		return Array.from(element.childNodes);
+	}
+
+	/**
+	 * @template T
+	 * @param {string} type
+	 * @param {T} [detail]
+	 * @param {{ bubbles?: boolean, cancelable?: boolean }} [options]
+	 * @returns {CustomEvent<T>}
+	 */
+	function custom_event(type, detail, { bubbles = false, cancelable = false } = {}) {
+		return new CustomEvent(type, { detail, bubbles, cancelable });
+	}
+
+	/**
+	 * @typedef {Node & {
+	 * 	claim_order?: number;
+	 * 	hydrate_init?: true;
+	 * 	actual_end_child?: NodeEx;
+	 * 	childNodes: NodeListOf<NodeEx>;
+	 * }} NodeEx
+	 */
+
+	/** @typedef {ChildNode & NodeEx} ChildNodeEx */
+
+	/** @typedef {NodeEx & { claim_order: number }} NodeEx2 */
+
+	/**
+	 * @typedef {ChildNodeEx[] & {
+	 * 	claim_info?: {
+	 * 		last_index: number;
+	 * 		total_claimed: number;
+	 * 	};
+	 * }} ChildNodeArray
+	 */
+
 	let current_component;
+
+	/** @returns {void} */
 	function set_current_component(component) {
-	    current_component = component;
+		current_component = component;
 	}
+
 	function get_current_component() {
-	    if (!current_component)
-	        throw new Error('Function called outside component initialization');
-	    return current_component;
+		if (!current_component) throw new Error('Function called outside component initialization');
+		return current_component;
 	}
+
 	/**
 	 * The `onMount` function schedules a callback to run as soon as the component has been mounted to the DOM.
 	 * It must be called during the component's initialisation (but doesn't need to live *inside* the component;
 	 * it can be called from an external module).
 	 *
+	 * If a function is returned _synchronously_ from `onMount`, it will be called when the component is unmounted.
+	 *
 	 * `onMount` does not run inside a [server-side component](/docs#run-time-server-side-component-api).
 	 *
-	 * https://svelte.dev/docs#run-time-svelte-onmount
+	 * https://svelte.dev/docs/svelte#onmount
+	 * @template T
+	 * @param {() => import('./private.js').NotFunction<T> | Promise<import('./private.js').NotFunction<T>> | (() => any)} fn
+	 * @returns {void}
 	 */
 	function onMount(fn) {
-	    get_current_component().$$.on_mount.push(fn);
+		get_current_component().$$.on_mount.push(fn);
 	}
+
 	/**
 	 * Schedules a callback to run immediately before the component is unmounted.
 	 *
 	 * Out of `onMount`, `beforeUpdate`, `afterUpdate` and `onDestroy`, this is the
 	 * only one that runs inside a server-side component.
 	 *
-	 * https://svelte.dev/docs#run-time-svelte-ondestroy
+	 * https://svelte.dev/docs/svelte#ondestroy
+	 * @param {() => any} fn
+	 * @returns {void}
 	 */
 	function onDestroy(fn) {
-	    get_current_component().$$.on_destroy.push(fn);
+		get_current_component().$$.on_destroy.push(fn);
 	}
+
 	/**
 	 * Associates an arbitrary `context` object with the current component and the specified `key`
 	 * and returns that object. The context is then available to children of the component
@@ -3077,41 +386,60 @@ var app = (function (child_process) {
 	 *
 	 * Like lifecycle functions, this must be called during component initialisation.
 	 *
-	 * https://svelte.dev/docs#run-time-svelte-setcontext
+	 * https://svelte.dev/docs/svelte#setcontext
+	 * @template T
+	 * @param {any} key
+	 * @param {T} context
+	 * @returns {T}
 	 */
 	function setContext(key, context) {
-	    get_current_component().$$.context.set(key, context);
-	    return context;
+		get_current_component().$$.context.set(key, context);
+		return context;
 	}
+
 	/**
 	 * Retrieves the context that belongs to the closest parent component with the specified `key`.
 	 * Must be called during component initialisation.
 	 *
-	 * https://svelte.dev/docs#run-time-svelte-getcontext
+	 * https://svelte.dev/docs/svelte#getcontext
+	 * @template T
+	 * @param {any} key
+	 * @returns {T}
 	 */
 	function getContext(key) {
-	    return get_current_component().$$.context.get(key);
+		return get_current_component().$$.context.get(key);
 	}
 
 	const dirty_components = [];
 	const binding_callbacks = [];
+
 	let render_callbacks = [];
+
 	const flush_callbacks = [];
+
 	const resolved_promise = /* @__PURE__ */ Promise.resolve();
+
 	let update_scheduled = false;
+
+	/** @returns {void} */
 	function schedule_update() {
-	    if (!update_scheduled) {
-	        update_scheduled = true;
-	        resolved_promise.then(flush);
-	    }
+		if (!update_scheduled) {
+			update_scheduled = true;
+			resolved_promise.then(flush);
+		}
 	}
+
+	/** @returns {Promise<void>} */
 	function tick() {
-	    schedule_update();
-	    return resolved_promise;
+		schedule_update();
+		return resolved_promise;
 	}
+
+	/** @returns {void} */
 	function add_render_callback(fn) {
-	    render_callbacks.push(fn);
+		render_callbacks.push(fn);
 	}
+
 	// flush() calls callbacks in this order:
 	// 1. All beforeUpdate callbacks, in order: parents before children
 	// 2. All bind:this callbacks, in reverse order: children before parents.
@@ -3131,427 +459,741 @@ var app = (function (child_process) {
 	//    callback called a second time; the seen_callbacks set, outside the flush()
 	//    function, guarantees this behavior.
 	const seen_callbacks = new Set();
+
 	let flushidx = 0; // Do *not* move this inside the flush() function
+
+	/** @returns {void} */
 	function flush() {
-	    // Do not reenter flush while dirty components are updated, as this can
-	    // result in an infinite loop. Instead, let the inner flush handle it.
-	    // Reentrancy is ok afterwards for bindings etc.
-	    if (flushidx !== 0) {
-	        return;
-	    }
-	    const saved_component = current_component;
-	    do {
-	        // first, call beforeUpdate functions
-	        // and update components
-	        try {
-	            while (flushidx < dirty_components.length) {
-	                const component = dirty_components[flushidx];
-	                flushidx++;
-	                set_current_component(component);
-	                update(component.$$);
-	            }
-	        }
-	        catch (e) {
-	            // reset dirty state to not end up in a deadlocked state and then rethrow
-	            dirty_components.length = 0;
-	            flushidx = 0;
-	            throw e;
-	        }
-	        set_current_component(null);
-	        dirty_components.length = 0;
-	        flushidx = 0;
-	        while (binding_callbacks.length)
-	            binding_callbacks.pop()();
-	        // then, once components are updated, call
-	        // afterUpdate functions. This may cause
-	        // subsequent updates...
-	        for (let i = 0; i < render_callbacks.length; i += 1) {
-	            const callback = render_callbacks[i];
-	            if (!seen_callbacks.has(callback)) {
-	                // ...so guard against infinite loops
-	                seen_callbacks.add(callback);
-	                callback();
-	            }
-	        }
-	        render_callbacks.length = 0;
-	    } while (dirty_components.length);
-	    while (flush_callbacks.length) {
-	        flush_callbacks.pop()();
-	    }
-	    update_scheduled = false;
-	    seen_callbacks.clear();
-	    set_current_component(saved_component);
-	}
-	function update($$) {
-	    if ($$.fragment !== null) {
-	        $$.update();
-	        run_all($$.before_update);
-	        const dirty = $$.dirty;
-	        $$.dirty = [-1];
-	        $$.fragment && $$.fragment.p($$.ctx, dirty);
-	        $$.after_update.forEach(add_render_callback);
-	    }
-	}
-	/**
-	 * Useful for example to execute remaining `afterUpdate` callbacks before executing `destroy`.
-	 */
-	function flush_render_callbacks(fns) {
-	    const filtered = [];
-	    const targets = [];
-	    render_callbacks.forEach((c) => fns.indexOf(c) === -1 ? filtered.push(c) : targets.push(c));
-	    targets.forEach((c) => c());
-	    render_callbacks = filtered;
-	}
-	const outroing = new Set();
-	let outros;
-	function group_outros() {
-	    outros = {
-	        r: 0,
-	        c: [],
-	        p: outros // parent group
-	    };
-	}
-	function check_outros() {
-	    if (!outros.r) {
-	        run_all(outros.c);
-	    }
-	    outros = outros.p;
-	}
-	function transition_in(block, local) {
-	    if (block && block.i) {
-	        outroing.delete(block);
-	        block.i(local);
-	    }
-	}
-	function transition_out(block, local, detach, callback) {
-	    if (block && block.o) {
-	        if (outroing.has(block))
-	            return;
-	        outroing.add(block);
-	        outros.c.push(() => {
-	            outroing.delete(block);
-	            if (callback) {
-	                if (detach)
-	                    block.d(1);
-	                callback();
-	            }
-	        });
-	        block.o(local);
-	    }
-	    else if (callback) {
-	        callback();
-	    }
-	}
-	function create_component(block) {
-	    block && block.c();
-	}
-	function mount_component(component, target, anchor, customElement) {
-	    const { fragment, after_update } = component.$$;
-	    fragment && fragment.m(target, anchor);
-	    if (!customElement) {
-	        // onMount happens before the initial afterUpdate
-	        add_render_callback(() => {
-	            const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
-	            // if the component was destroyed immediately
-	            // it will update the `$$.on_destroy` reference to `null`.
-	            // the destructured on_destroy may still reference to the old array
-	            if (component.$$.on_destroy) {
-	                component.$$.on_destroy.push(...new_on_destroy);
-	            }
-	            else {
-	                // Edge case - component was destroyed immediately,
-	                // most likely as a result of a binding initialising
-	                run_all(new_on_destroy);
-	            }
-	            component.$$.on_mount = [];
-	        });
-	    }
-	    after_update.forEach(add_render_callback);
-	}
-	function destroy_component(component, detaching) {
-	    const $$ = component.$$;
-	    if ($$.fragment !== null) {
-	        flush_render_callbacks($$.after_update);
-	        run_all($$.on_destroy);
-	        $$.fragment && $$.fragment.d(detaching);
-	        // TODO null out other refs, including component.$$ (but need to
-	        // preserve final state?)
-	        $$.on_destroy = $$.fragment = null;
-	        $$.ctx = [];
-	    }
-	}
-	function make_dirty(component, i) {
-	    if (component.$$.dirty[0] === -1) {
-	        dirty_components.push(component);
-	        schedule_update();
-	        component.$$.dirty.fill(0);
-	    }
-	    component.$$.dirty[(i / 31) | 0] |= (1 << (i % 31));
-	}
-	function init(component, options, instance, create_fragment, not_equal, props, append_styles, dirty = [-1]) {
-	    const parent_component = current_component;
-	    set_current_component(component);
-	    const $$ = component.$$ = {
-	        fragment: null,
-	        ctx: [],
-	        // state
-	        props,
-	        update: noop,
-	        not_equal,
-	        bound: blank_object(),
-	        // lifecycle
-	        on_mount: [],
-	        on_destroy: [],
-	        on_disconnect: [],
-	        before_update: [],
-	        after_update: [],
-	        context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
-	        // everything else
-	        callbacks: blank_object(),
-	        dirty,
-	        skip_bound: false,
-	        root: options.target || parent_component.$$.root
-	    };
-	    append_styles && append_styles($$.root);
-	    let ready = false;
-	    $$.ctx = instance
-	        ? instance(component, options.props || {}, (i, ret, ...rest) => {
-	            const value = rest.length ? rest[0] : ret;
-	            if ($$.ctx && not_equal($$.ctx[i], $$.ctx[i] = value)) {
-	                if (!$$.skip_bound && $$.bound[i])
-	                    $$.bound[i](value);
-	                if (ready)
-	                    make_dirty(component, i);
-	            }
-	            return ret;
-	        })
-	        : [];
-	    $$.update();
-	    ready = true;
-	    run_all($$.before_update);
-	    // `false` as a special case of no DOM component
-	    $$.fragment = create_fragment ? create_fragment($$.ctx) : false;
-	    if (options.target) {
-	        if (options.hydrate) {
-	            const nodes = children(options.target);
-	            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-	            $$.fragment && $$.fragment.l(nodes);
-	            nodes.forEach(detach);
-	        }
-	        else {
-	            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-	            $$.fragment && $$.fragment.c();
-	        }
-	        if (options.intro)
-	            transition_in(component.$$.fragment);
-	        mount_component(component, options.target, options.anchor, options.customElement);
-	        flush();
-	    }
-	    set_current_component(parent_component);
-	}
-	/**
-	 * Base class for Svelte components. Used when dev=false.
-	 */
-	class SvelteComponent {
-	    $destroy() {
-	        destroy_component(this, 1);
-	        this.$destroy = noop;
-	    }
-	    $on(type, callback) {
-	        if (!is_function(callback)) {
-	            return noop;
-	        }
-	        const callbacks = (this.$$.callbacks[type] || (this.$$.callbacks[type] = []));
-	        callbacks.push(callback);
-	        return () => {
-	            const index = callbacks.indexOf(callback);
-	            if (index !== -1)
-	                callbacks.splice(index, 1);
-	        };
-	    }
-	    $set($$props) {
-	        if (this.$$set && !is_empty($$props)) {
-	            this.$$.skip_bound = true;
-	            this.$$set($$props);
-	            this.$$.skip_bound = false;
-	        }
-	    }
+		// Do not reenter flush while dirty components are updated, as this can
+		// result in an infinite loop. Instead, let the inner flush handle it.
+		// Reentrancy is ok afterwards for bindings etc.
+		if (flushidx !== 0) {
+			return;
+		}
+		const saved_component = current_component;
+		do {
+			// first, call beforeUpdate functions
+			// and update components
+			try {
+				while (flushidx < dirty_components.length) {
+					const component = dirty_components[flushidx];
+					flushidx++;
+					set_current_component(component);
+					update(component.$$);
+				}
+			} catch (e) {
+				// reset dirty state to not end up in a deadlocked state and then rethrow
+				dirty_components.length = 0;
+				flushidx = 0;
+				throw e;
+			}
+			set_current_component(null);
+			dirty_components.length = 0;
+			flushidx = 0;
+			while (binding_callbacks.length) binding_callbacks.pop()();
+			// then, once components are updated, call
+			// afterUpdate functions. This may cause
+			// subsequent updates...
+			for (let i = 0; i < render_callbacks.length; i += 1) {
+				const callback = render_callbacks[i];
+				if (!seen_callbacks.has(callback)) {
+					// ...so guard against infinite loops
+					seen_callbacks.add(callback);
+					callback();
+				}
+			}
+			render_callbacks.length = 0;
+		} while (dirty_components.length);
+		while (flush_callbacks.length) {
+			flush_callbacks.pop()();
+		}
+		update_scheduled = false;
+		seen_callbacks.clear();
+		set_current_component(saved_component);
 	}
 
+	/** @returns {void} */
+	function update($$) {
+		if ($$.fragment !== null) {
+			$$.update();
+			run_all($$.before_update);
+			const dirty = $$.dirty;
+			$$.dirty = [-1];
+			$$.fragment && $$.fragment.p($$.ctx, dirty);
+			$$.after_update.forEach(add_render_callback);
+		}
+	}
+
+	/**
+	 * Useful for example to execute remaining `afterUpdate` callbacks before executing `destroy`.
+	 * @param {Function[]} fns
+	 * @returns {void}
+	 */
+	function flush_render_callbacks(fns) {
+		const filtered = [];
+		const targets = [];
+		render_callbacks.forEach((c) => (fns.indexOf(c) === -1 ? filtered.push(c) : targets.push(c)));
+		targets.forEach((c) => c());
+		render_callbacks = filtered;
+	}
+
+	const outroing = new Set();
+
+	/**
+	 * @type {Outro}
+	 */
+	let outros;
+
+	/**
+	 * @returns {void} */
+	function group_outros() {
+		outros = {
+			r: 0,
+			c: [],
+			p: outros // parent group
+		};
+	}
+
+	/**
+	 * @returns {void} */
+	function check_outros() {
+		if (!outros.r) {
+			run_all(outros.c);
+		}
+		outros = outros.p;
+	}
+
+	/**
+	 * @param {import('./private.js').Fragment} block
+	 * @param {0 | 1} [local]
+	 * @returns {void}
+	 */
+	function transition_in(block, local) {
+		if (block && block.i) {
+			outroing.delete(block);
+			block.i(local);
+		}
+	}
+
+	/**
+	 * @param {import('./private.js').Fragment} block
+	 * @param {0 | 1} local
+	 * @param {0 | 1} [detach]
+	 * @param {() => void} [callback]
+	 * @returns {void}
+	 */
+	function transition_out(block, local, detach, callback) {
+		if (block && block.o) {
+			if (outroing.has(block)) return;
+			outroing.add(block);
+			outros.c.push(() => {
+				outroing.delete(block);
+				if (callback) {
+					if (detach) block.d(1);
+					callback();
+				}
+			});
+			block.o(local);
+		} else if (callback) {
+			callback();
+		}
+	}
+
+	/** @typedef {1} INTRO */
+	/** @typedef {0} OUTRO */
+	/** @typedef {{ direction: 'in' | 'out' | 'both' }} TransitionOptions */
+	/** @typedef {(node: Element, params: any, options: TransitionOptions) => import('../transition/public.js').TransitionConfig} TransitionFn */
+
+	/**
+	 * @typedef {Object} Outro
+	 * @property {number} r
+	 * @property {Function[]} c
+	 * @property {Object} p
+	 */
+
+	/**
+	 * @typedef {Object} PendingProgram
+	 * @property {number} start
+	 * @property {INTRO|OUTRO} b
+	 * @property {Outro} [group]
+	 */
+
+	/**
+	 * @typedef {Object} Program
+	 * @property {number} a
+	 * @property {INTRO|OUTRO} b
+	 * @property {1|-1} d
+	 * @property {number} duration
+	 * @property {number} start
+	 * @property {number} end
+	 * @property {Outro} [group]
+	 */
+
+	// general each functions:
+
+	function ensure_array_like(array_like_or_iterator) {
+		return array_like_or_iterator?.length !== undefined
+			? array_like_or_iterator
+			: Array.from(array_like_or_iterator);
+	}
+
+	/** @returns {void} */
+	function create_component(block) {
+		block && block.c();
+	}
+
+	/** @returns {void} */
+	function mount_component(component, target, anchor) {
+		const { fragment, after_update } = component.$$;
+		fragment && fragment.m(target, anchor);
+		// onMount happens before the initial afterUpdate
+		add_render_callback(() => {
+			const new_on_destroy = component.$$.on_mount.map(run).filter(is_function);
+			// if the component was destroyed immediately
+			// it will update the `$$.on_destroy` reference to `null`.
+			// the destructured on_destroy may still reference to the old array
+			if (component.$$.on_destroy) {
+				component.$$.on_destroy.push(...new_on_destroy);
+			} else {
+				// Edge case - component was destroyed immediately,
+				// most likely as a result of a binding initialising
+				run_all(new_on_destroy);
+			}
+			component.$$.on_mount = [];
+		});
+		after_update.forEach(add_render_callback);
+	}
+
+	/** @returns {void} */
+	function destroy_component(component, detaching) {
+		const $$ = component.$$;
+		if ($$.fragment !== null) {
+			flush_render_callbacks($$.after_update);
+			run_all($$.on_destroy);
+			$$.fragment && $$.fragment.d(detaching);
+			// TODO null out other refs, including component.$$ (but need to
+			// preserve final state?)
+			$$.on_destroy = $$.fragment = null;
+			$$.ctx = [];
+		}
+	}
+
+	/** @returns {void} */
+	function make_dirty(component, i) {
+		if (component.$$.dirty[0] === -1) {
+			dirty_components.push(component);
+			schedule_update();
+			component.$$.dirty.fill(0);
+		}
+		component.$$.dirty[(i / 31) | 0] |= 1 << i % 31;
+	}
+
+	// TODO: Document the other params
+	/**
+	 * @param {SvelteComponent} component
+	 * @param {import('./public.js').ComponentConstructorOptions} options
+	 *
+	 * @param {import('./utils.js')['not_equal']} not_equal Used to compare props and state values.
+	 * @param {(target: Element | ShadowRoot) => void} [append_styles] Function that appends styles to the DOM when the component is first initialised.
+	 * This will be the `add_css` function from the compiled component.
+	 *
+	 * @returns {void}
+	 */
+	function init(
+		component,
+		options,
+		instance,
+		create_fragment,
+		not_equal,
+		props,
+		append_styles = null,
+		dirty = [-1]
+	) {
+		const parent_component = current_component;
+		set_current_component(component);
+		/** @type {import('./private.js').T$$} */
+		const $$ = (component.$$ = {
+			fragment: null,
+			ctx: [],
+			// state
+			props,
+			update: noop,
+			not_equal,
+			bound: blank_object(),
+			// lifecycle
+			on_mount: [],
+			on_destroy: [],
+			on_disconnect: [],
+			before_update: [],
+			after_update: [],
+			context: new Map(options.context || (parent_component ? parent_component.$$.context : [])),
+			// everything else
+			callbacks: blank_object(),
+			dirty,
+			skip_bound: false,
+			root: options.target || parent_component.$$.root
+		});
+		append_styles && append_styles($$.root);
+		let ready = false;
+		$$.ctx = instance
+			? instance(component, options.props || {}, (i, ret, ...rest) => {
+					const value = rest.length ? rest[0] : ret;
+					if ($$.ctx && not_equal($$.ctx[i], ($$.ctx[i] = value))) {
+						if (!$$.skip_bound && $$.bound[i]) $$.bound[i](value);
+						if (ready) make_dirty(component, i);
+					}
+					return ret;
+			  })
+			: [];
+		$$.update();
+		ready = true;
+		run_all($$.before_update);
+		// `false` as a special case of no DOM component
+		$$.fragment = create_fragment ? create_fragment($$.ctx) : false;
+		if (options.target) {
+			if (options.hydrate) {
+				// TODO: what is the correct type here?
+				// @ts-expect-error
+				const nodes = children(options.target);
+				$$.fragment && $$.fragment.l(nodes);
+				nodes.forEach(detach);
+			} else {
+				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+				$$.fragment && $$.fragment.c();
+			}
+			if (options.intro) transition_in(component.$$.fragment);
+			mount_component(component, options.target, options.anchor);
+			flush();
+		}
+		set_current_component(parent_component);
+	}
+
+	/**
+	 * Base class for Svelte components. Used when dev=false.
+	 *
+	 * @template {Record<string, any>} [Props=any]
+	 * @template {Record<string, any>} [Events=any]
+	 */
+	class SvelteComponent {
+		/**
+		 * ### PRIVATE API
+		 *
+		 * Do not use, may change at any time
+		 *
+		 * @type {any}
+		 */
+		$$ = undefined;
+		/**
+		 * ### PRIVATE API
+		 *
+		 * Do not use, may change at any time
+		 *
+		 * @type {any}
+		 */
+		$$set = undefined;
+
+		/** @returns {void} */
+		$destroy() {
+			destroy_component(this, 1);
+			this.$destroy = noop;
+		}
+
+		/**
+		 * @template {Extract<keyof Events, string>} K
+		 * @param {K} type
+		 * @param {((e: Events[K]) => void) | null | undefined} callback
+		 * @returns {() => void}
+		 */
+		$on(type, callback) {
+			if (!is_function(callback)) {
+				return noop;
+			}
+			const callbacks = this.$$.callbacks[type] || (this.$$.callbacks[type] = []);
+			callbacks.push(callback);
+			return () => {
+				const index = callbacks.indexOf(callback);
+				if (index !== -1) callbacks.splice(index, 1);
+			};
+		}
+
+		/**
+		 * @param {Partial<Props>} props
+		 * @returns {void}
+		 */
+		$set(props) {
+			if (this.$$set && !is_empty(props)) {
+				this.$$.skip_bound = true;
+				this.$$set(props);
+				this.$$.skip_bound = false;
+			}
+		}
+	}
+
+	/**
+	 * @typedef {Object} CustomElementPropDefinition
+	 * @property {string} [attribute]
+	 * @property {boolean} [reflect]
+	 * @property {'String'|'Boolean'|'Number'|'Array'|'Object'} [type]
+	 */
+
+	// generated during release, do not modify
+
+	/**
+	 * The current version, as set in package.json.
+	 *
+	 * https://svelte.dev/docs/svelte-compiler#svelte-version
+	 * @type {string}
+	 */
+	const VERSION = '4.2.1';
+	const PUBLIC_VERSION = '4';
+
+	/**
+	 * @template T
+	 * @param {string} type
+	 * @param {T} [detail]
+	 * @returns {void}
+	 */
 	function dispatch_dev(type, detail) {
-	    document.dispatchEvent(custom_event(type, Object.assign({ version: '3.59.2' }, detail), { bubbles: true }));
+		document.dispatchEvent(custom_event(type, { version: VERSION, ...detail }, { bubbles: true }));
 	}
+
+	/**
+	 * @param {Node} target
+	 * @param {Node} node
+	 * @returns {void}
+	 */
 	function append_dev(target, node) {
-	    dispatch_dev('SvelteDOMInsert', { target, node });
-	    append(target, node);
+		dispatch_dev('SvelteDOMInsert', { target, node });
+		append(target, node);
 	}
+
+	/**
+	 * @param {Node} target
+	 * @param {Node} node
+	 * @param {Node} [anchor]
+	 * @returns {void}
+	 */
 	function insert_dev(target, node, anchor) {
-	    dispatch_dev('SvelteDOMInsert', { target, node, anchor });
-	    insert(target, node, anchor);
+		dispatch_dev('SvelteDOMInsert', { target, node, anchor });
+		insert(target, node, anchor);
 	}
+
+	/**
+	 * @param {Node} node
+	 * @returns {void}
+	 */
 	function detach_dev(node) {
-	    dispatch_dev('SvelteDOMRemove', { node });
-	    detach(node);
+		dispatch_dev('SvelteDOMRemove', { node });
+		detach(node);
 	}
+
+	/**
+	 * @param {Element} node
+	 * @param {string} attribute
+	 * @param {string} [value]
+	 * @returns {void}
+	 */
 	function attr_dev(node, attribute, value) {
-	    attr(node, attribute, value);
-	    if (value == null)
-	        dispatch_dev('SvelteDOMRemoveAttribute', { node, attribute });
-	    else
-	        dispatch_dev('SvelteDOMSetAttribute', { node, attribute, value });
+		attr(node, attribute, value);
+		if (value == null) dispatch_dev('SvelteDOMRemoveAttribute', { node, attribute });
+		else dispatch_dev('SvelteDOMSetAttribute', { node, attribute, value });
 	}
+
+	/**
+	 * @param {Text} text
+	 * @param {unknown} data
+	 * @returns {void}
+	 */
 	function set_data_dev(text, data) {
-	    data = '' + data;
-	    if (text.data === data)
-	        return;
-	    dispatch_dev('SvelteDOMSetData', { node: text, data });
-	    text.data = data;
+		data = '' + data;
+		if (text.data === data) return;
+		dispatch_dev('SvelteDOMSetData', { node: text, data });
+		text.data = /** @type {string} */ (data);
 	}
-	function validate_each_argument(arg) {
-	    if (typeof arg !== 'string' && !(arg && typeof arg === 'object' && 'length' in arg)) {
-	        let msg = '{#each} only iterates over array-like objects.';
-	        if (typeof Symbol === 'function' && arg && Symbol.iterator in arg) {
-	            msg += ' You can use a spread to convert this iterable into an array.';
-	        }
-	        throw new Error(msg);
-	    }
+
+	function ensure_array_like_dev(arg) {
+		if (
+			typeof arg !== 'string' &&
+			!(arg && typeof arg === 'object' && 'length' in arg) &&
+			!(typeof Symbol === 'function' && arg && Symbol.iterator in arg)
+		) {
+			throw new Error('{#each} only works with iterable values.');
+		}
+		return ensure_array_like(arg);
 	}
+
+	/**
+	 * @returns {void} */
 	function validate_slots(name, slot, keys) {
-	    for (const slot_key of Object.keys(slot)) {
-	        if (!~keys.indexOf(slot_key)) {
-	            console.warn(`<${name}> received an unexpected slot "${slot_key}".`);
-	        }
-	    }
+		for (const slot_key of Object.keys(slot)) {
+			if (!~keys.indexOf(slot_key)) {
+				console.warn(`<${name}> received an unexpected slot "${slot_key}".`);
+			}
+		}
 	}
+
 	/**
 	 * Base class for Svelte components with some minor dev-enhancements. Used when dev=true.
+	 *
+	 * Can be used to create strongly typed Svelte components.
+	 *
+	 * #### Example:
+	 *
+	 * You have component library on npm called `component-library`, from which
+	 * you export a component called `MyComponent`. For Svelte+TypeScript users,
+	 * you want to provide typings. Therefore you create a `index.d.ts`:
+	 * ```ts
+	 * import { SvelteComponent } from "svelte";
+	 * export class MyComponent extends SvelteComponent<{foo: string}> {}
+	 * ```
+	 * Typing this makes it possible for IDEs like VS Code with the Svelte extension
+	 * to provide intellisense and to use the component like this in a Svelte file
+	 * with TypeScript:
+	 * ```svelte
+	 * <script lang="ts">
+	 * 	import { MyComponent } from "component-library";
+	 * </script>
+	 * <MyComponent foo={'bar'} />
+	 * ```
+	 * @template {Record<string, any>} [Props=any]
+	 * @template {Record<string, any>} [Events=any]
+	 * @template {Record<string, any>} [Slots=any]
+	 * @extends {SvelteComponent<Props, Events>}
 	 */
 	class SvelteComponentDev extends SvelteComponent {
-	    constructor(options) {
-	        if (!options || (!options.target && !options.$$inline)) {
-	            throw new Error("'target' is a required option");
-	        }
-	        super();
-	    }
-	    $destroy() {
-	        super.$destroy();
-	        this.$destroy = () => {
-	            console.warn('Component was already destroyed'); // eslint-disable-line no-console
-	        };
-	    }
-	    $capture_state() { }
-	    $inject_state() { }
+		/**
+		 * For type checking capabilities only.
+		 * Does not exist at runtime.
+		 * ### DO NOT USE!
+		 *
+		 * @type {Props}
+		 */
+		$$prop_def;
+		/**
+		 * For type checking capabilities only.
+		 * Does not exist at runtime.
+		 * ### DO NOT USE!
+		 *
+		 * @type {Events}
+		 */
+		$$events_def;
+		/**
+		 * For type checking capabilities only.
+		 * Does not exist at runtime.
+		 * ### DO NOT USE!
+		 *
+		 * @type {Slots}
+		 */
+		$$slot_def;
+
+		/** @param {import('./public.js').ComponentConstructorOptions<Props>} options */
+		constructor(options) {
+			if (!options || (!options.target && !options.$$inline)) {
+				throw new Error("'target' is a required option");
+			}
+			super();
+		}
+
+		/** @returns {void} */
+		$destroy() {
+			super.$destroy();
+			this.$destroy = () => {
+				console.warn('Component was already destroyed'); // eslint-disable-line no-console
+			};
+		}
+
+		/** @returns {void} */
+		$capture_state() {}
+
+		/** @returns {void} */
+		$inject_state() {}
 	}
 
 	const subscriber_queue = [];
+
 	/**
 	 * Creates a `Readable` store that allows reading by subscription.
-	 * @param value initial value
-	 * @param {StartStopNotifier} [start]
+	 *
+	 * https://svelte.dev/docs/svelte-store#readable
+	 * @template T
+	 * @param {T} [value] initial value
+	 * @param {import('./public.js').StartStopNotifier<T>} [start]
+	 * @returns {import('./public.js').Readable<T>}
 	 */
 	function readable(value, start) {
-	    return {
-	        subscribe: writable$1(value, start).subscribe
-	    };
+		return {
+			subscribe: writable(value, start).subscribe
+		};
 	}
+
 	/**
 	 * Create a `Writable` store that allows both updating and reading by subscription.
-	 * @param {*=}value initial value
-	 * @param {StartStopNotifier=} start
+	 *
+	 * https://svelte.dev/docs/svelte-store#writable
+	 * @template T
+	 * @param {T} [value] initial value
+	 * @param {import('./public.js').StartStopNotifier<T>} [start]
+	 * @returns {import('./public.js').Writable<T>}
 	 */
-	function writable$1(value, start = noop) {
-	    let stop;
-	    const subscribers = new Set();
-	    function set(new_value) {
-	        if (safe_not_equal(value, new_value)) {
-	            value = new_value;
-	            if (stop) { // store is ready
-	                const run_queue = !subscriber_queue.length;
-	                for (const subscriber of subscribers) {
-	                    subscriber[1]();
-	                    subscriber_queue.push(subscriber, value);
-	                }
-	                if (run_queue) {
-	                    for (let i = 0; i < subscriber_queue.length; i += 2) {
-	                        subscriber_queue[i][0](subscriber_queue[i + 1]);
-	                    }
-	                    subscriber_queue.length = 0;
-	                }
-	            }
-	        }
-	    }
-	    function update(fn) {
-	        set(fn(value));
-	    }
-	    function subscribe(run, invalidate = noop) {
-	        const subscriber = [run, invalidate];
-	        subscribers.add(subscriber);
-	        if (subscribers.size === 1) {
-	            stop = start(set) || noop;
-	        }
-	        run(value);
-	        return () => {
-	            subscribers.delete(subscriber);
-	            if (subscribers.size === 0 && stop) {
-	                stop();
-	                stop = null;
-	            }
-	        };
-	    }
-	    return { set, update, subscribe };
+	function writable(value, start = noop) {
+		/** @type {import('./public.js').Unsubscriber} */
+		let stop;
+		/** @type {Set<import('./private.js').SubscribeInvalidateTuple<T>>} */
+		const subscribers = new Set();
+		/** @param {T} new_value
+		 * @returns {void}
+		 */
+		function set(new_value) {
+			if (safe_not_equal(value, new_value)) {
+				value = new_value;
+				if (stop) {
+					// store is ready
+					const run_queue = !subscriber_queue.length;
+					for (const subscriber of subscribers) {
+						subscriber[1]();
+						subscriber_queue.push(subscriber, value);
+					}
+					if (run_queue) {
+						for (let i = 0; i < subscriber_queue.length; i += 2) {
+							subscriber_queue[i][0](subscriber_queue[i + 1]);
+						}
+						subscriber_queue.length = 0;
+					}
+				}
+			}
+		}
+
+		/**
+		 * @param {import('./public.js').Updater<T>} fn
+		 * @returns {void}
+		 */
+		function update(fn) {
+			set(fn(value));
+		}
+
+		/**
+		 * @param {import('./public.js').Subscriber<T>} run
+		 * @param {import('./private.js').Invalidator<T>} [invalidate]
+		 * @returns {import('./public.js').Unsubscriber}
+		 */
+		function subscribe(run, invalidate = noop) {
+			/** @type {import('./private.js').SubscribeInvalidateTuple<T>} */
+			const subscriber = [run, invalidate];
+			subscribers.add(subscriber);
+			if (subscribers.size === 1) {
+				stop = start(set, update) || noop;
+			}
+			run(value);
+			return () => {
+				subscribers.delete(subscriber);
+				if (subscribers.size === 0 && stop) {
+					stop();
+					stop = null;
+				}
+			};
+		}
+		return { set, update, subscribe };
 	}
+
+	/**
+	 * Derived value store by synchronizing one or more readable stores and
+	 * applying an aggregation function over its input values.
+	 *
+	 * https://svelte.dev/docs/svelte-store#derived
+	 * @template {import('./private.js').Stores} S
+	 * @template T
+	 * @overload
+	 * @param {S} stores - input stores
+	 * @param {(values: import('./private.js').StoresValues<S>, set: (value: T) => void, update: (fn: import('./public.js').Updater<T>) => void) => import('./public.js').Unsubscriber | void} fn - function callback that aggregates the values
+	 * @param {T} [initial_value] - initial value
+	 * @returns {import('./public.js').Readable<T>}
+	 */
+
+	/**
+	 * Derived value store by synchronizing one or more readable stores and
+	 * applying an aggregation function over its input values.
+	 *
+	 * https://svelte.dev/docs/svelte-store#derived
+	 * @template {import('./private.js').Stores} S
+	 * @template T
+	 * @overload
+	 * @param {S} stores - input stores
+	 * @param {(values: import('./private.js').StoresValues<S>) => T} fn - function callback that aggregates the values
+	 * @param {T} [initial_value] - initial value
+	 * @returns {import('./public.js').Readable<T>}
+	 */
+
+	/**
+	 * @template {import('./private.js').Stores} S
+	 * @template T
+	 * @param {S} stores
+	 * @param {Function} fn
+	 * @param {T} [initial_value]
+	 * @returns {import('./public.js').Readable<T>}
+	 */
 	function derived(stores, fn, initial_value) {
-	    const single = !Array.isArray(stores);
-	    const stores_array = single
-	        ? [stores]
-	        : stores;
-	    const auto = fn.length < 2;
-	    return readable(initial_value, (set) => {
-	        let started = false;
-	        const values = [];
-	        let pending = 0;
-	        let cleanup = noop;
-	        const sync = () => {
-	            if (pending) {
-	                return;
-	            }
-	            cleanup();
-	            const result = fn(single ? values[0] : values, set);
-	            if (auto) {
-	                set(result);
-	            }
-	            else {
-	                cleanup = is_function(result) ? result : noop;
-	            }
-	        };
-	        const unsubscribers = stores_array.map((store, i) => subscribe(store, (value) => {
-	            values[i] = value;
-	            pending &= ~(1 << i);
-	            if (started) {
-	                sync();
-	            }
-	        }, () => {
-	            pending |= (1 << i);
-	        }));
-	        started = true;
-	        sync();
-	        return function stop() {
-	            run_all(unsubscribers);
-	            cleanup();
-	            // We need to set this to false because callbacks can still happen despite having unsubscribed:
-	            // Callbacks might already be placed in the queue which doesn't know it should no longer
-	            // invoke this derived store.
-	            started = false;
-	        };
-	    });
+		const single = !Array.isArray(stores);
+		/** @type {Array<import('./public.js').Readable<any>>} */
+		const stores_array = single ? [stores] : stores;
+		if (!stores_array.every(Boolean)) {
+			throw new Error('derived() expects stores as input, got a falsy value');
+		}
+		const auto = fn.length < 2;
+		return readable(initial_value, (set, update) => {
+			let started = false;
+			const values = [];
+			let pending = 0;
+			let cleanup = noop;
+			const sync = () => {
+				if (pending) {
+					return;
+				}
+				cleanup();
+				const result = fn(single ? values[0] : values, set, update);
+				if (auto) {
+					set(result);
+				} else {
+					cleanup = is_function(result) ? result : noop;
+				}
+			};
+			const unsubscribers = stores_array.map((store, i) =>
+				subscribe(
+					store,
+					(value) => {
+						values[i] = value;
+						pending &= ~(1 << i);
+						if (started) {
+							sync();
+						}
+					},
+					() => {
+						pending |= 1 << i;
+					}
+				)
+			);
+			started = true;
+			sync();
+			return function stop() {
+				run_all(unsubscribers);
+				cleanup();
+				// We need to set this to false because callbacks can still happen despite having unsubscribed:
+				// Callbacks might already be placed in the queue which doesn't know it should no longer
+				// invoke this derived store.
+				started = false;
+			};
+		});
 	}
+
+	if (typeof window !== 'undefined')
+		// @ts-ignore
+		(window.__svelte || (window.__svelte = { v: new Set() })).v.add(PUBLIC_VERSION);
 
 	/**
 	 * @license
 	 * Copyright 2010-2023 Three.js Authors
 	 * SPDX-License-Identifier: MIT
 	 */
-	const REVISION = '153';
+	const REVISION = '155';
 
 	const MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
 	const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
@@ -6431,13 +4073,13 @@ var app = (function (child_process) {
 	 * Texture parameters for an auto-generated target texture
 	 * depthBuffer/stencilBuffer: Booleans to indicate if we should generate these buffers
 	*/
-	class WebGLRenderTarget extends EventDispatcher {
+	class RenderTarget extends EventDispatcher {
 
 		constructor( width = 1, height = 1, options = {} ) {
 
 			super();
 
-			this.isWebGLRenderTarget = true;
+			this.isRenderTarget = true;
 
 			this.width = width;
 			this.height = height;
@@ -6535,6 +4177,18 @@ var app = (function (child_process) {
 		dispose() {
 
 			this.dispatchEvent( { type: 'dispose' } );
+
+		}
+
+	}
+
+	class WebGLRenderTarget extends RenderTarget {
+
+		constructor( width = 1, height = 1, options = {} ) {
+
+			super( width, height, options );
+
+			this.isWebGLRenderTarget = true;
 
 		}
 
@@ -6673,8 +4327,6 @@ var app = (function (child_process) {
 
 			this.viewport.set( 0, 0, width, height );
 			this.scissor.set( 0, 0, width, height );
-
-			return this;
 
 		}
 
@@ -11573,7 +9225,7 @@ var app = (function (child_process) {
 			this.frustumCulled = source.frustumCulled;
 			this.renderOrder = source.renderOrder;
 
-			this.animations = source.animations;
+			this.animations = source.animations.slice();
 
 			this.userData = JSON.parse( JSON.stringify( source.userData ) );
 
@@ -11947,6 +9599,7 @@ var app = (function (child_process) {
 
 			this.opacity = 1;
 			this.transparent = false;
+			this.alphaHash = false;
 
 			this.blendSrc = SrcAlphaFactor;
 			this.blendDst = OneMinusSrcAlphaFactor;
@@ -12275,6 +9928,7 @@ var app = (function (child_process) {
 			if ( this.dithering === true ) data.dithering = true;
 
 			if ( this.alphaTest > 0 ) data.alphaTest = this.alphaTest;
+			if ( this.alphaHash === true ) data.alphaHash = this.alphaHash;
 			if ( this.alphaToCoverage === true ) data.alphaToCoverage = this.alphaToCoverage;
 			if ( this.premultipliedAlpha === true ) data.premultipliedAlpha = this.premultipliedAlpha;
 			if ( this.forceSinglePass === true ) data.forceSinglePass = this.forceSinglePass;
@@ -12396,6 +10050,7 @@ var app = (function (child_process) {
 			this.dithering = source.dithering;
 
 			this.alphaTest = source.alphaTest;
+			this.alphaHash = source.alphaHash;
 			this.alphaToCoverage = source.alphaToCoverage;
 			this.premultipliedAlpha = source.premultipliedAlpha;
 			this.forceSinglePass = source.forceSinglePass;
@@ -13462,6 +11117,26 @@ var app = (function (child_process) {
 
 		}
 
+		getComponent( index, component ) {
+
+			let value = this.array[ index * this.itemSize + component ];
+
+			if ( this.normalized ) value = denormalize( value, this.array );
+
+			return value;
+
+		}
+
+		setComponent( index, component, value ) {
+
+			if ( this.normalized ) value = normalize( value, this.array );
+
+			this.array[ index * this.itemSize + component ] = value;
+
+			return this;
+
+		}
+
 		getX( index ) {
 
 			let x = this.array[ index * this.itemSize ];
@@ -13630,30 +11305,6 @@ var app = (function (child_process) {
 			if ( this.updateRange.offset !== 0 || this.updateRange.count !== - 1 ) data.updateRange = this.updateRange;
 
 			return data;
-
-		}
-
-		copyColorsArray() { // @deprecated, r144
-
-			console.error( 'THREE.BufferAttribute: copyColorsArray() was removed in r144.' );
-
-		}
-
-		copyVector2sArray() { // @deprecated, r144
-
-			console.error( 'THREE.BufferAttribute: copyVector2sArray() was removed in r144.' );
-
-		}
-
-		copyVector3sArray() { // @deprecated, r144
-
-			console.error( 'THREE.BufferAttribute: copyVector3sArray() was removed in r144.' );
-
-		}
-
-		copyVector4sArray() { // @deprecated, r144
-
-			console.error( 'THREE.BufferAttribute: copyVector4sArray() was removed in r144.' );
 
 		}
 
@@ -14617,13 +12268,6 @@ var app = (function (child_process) {
 				normalAttribute.needsUpdate = true;
 
 			}
-
-		}
-
-		merge() { // @deprecated, r144
-
-			console.error( 'THREE.BufferGeometry.merge() has been removed. Use THREE.BufferGeometryUtils.mergeGeometries() instead.' );
-			return this;
 
 		}
 
@@ -16275,10 +13919,8 @@ var app = (function (child_process) {
 
 			const currentRenderTarget = renderer.getRenderTarget();
 
-			const currentToneMapping = renderer.toneMapping;
 			const currentXrEnabled = renderer.xr.enabled;
 
-			renderer.toneMapping = NoToneMapping;
 			renderer.xr.enabled = false;
 
 			const generateMipmaps = renderTarget.texture.generateMipmaps;
@@ -16307,7 +13949,6 @@ var app = (function (child_process) {
 
 			renderer.setRenderTarget( currentRenderTarget );
 
-			renderer.toneMapping = currentToneMapping;
 			renderer.xr.enabled = currentXrEnabled;
 
 			renderTarget.texture.needsPMREMUpdate = true;
@@ -17208,6 +14849,10 @@ var app = (function (child_process) {
 
 	}
 
+	var alphahash_fragment = "#ifdef USE_ALPHAHASH\n\tif ( diffuseColor.a < getAlphaHashThreshold( vPosition ) ) discard;\n#endif";
+
+	var alphahash_pars_fragment = "#ifdef USE_ALPHAHASH\n\tconst float ALPHA_HASH_SCALE = 0.05;\n\tfloat hash2D( vec2 value ) {\n\t\treturn fract( 1.0e4 * sin( 17.0 * value.x + 0.1 * value.y ) * ( 0.1 + abs( sin( 13.0 * value.y + value.x ) ) ) );\n\t}\n\tfloat hash3D( vec3 value ) {\n\t\treturn hash2D( vec2( hash2D( value.xy ), value.z ) );\n\t}\n\tfloat getAlphaHashThreshold( vec3 position ) {\n\t\tfloat maxDeriv = max(\n\t\t\tlength( dFdx( position.xyz ) ),\n\t\t\tlength( dFdy( position.xyz ) )\n\t\t);\n\t\tfloat pixScale = 1.0 / ( ALPHA_HASH_SCALE * maxDeriv );\n\t\tvec2 pixScales = vec2(\n\t\t\texp2( floor( log2( pixScale ) ) ),\n\t\t\texp2( ceil( log2( pixScale ) ) )\n\t\t);\n\t\tvec2 alpha = vec2(\n\t\t\thash3D( floor( pixScales.x * position.xyz ) ),\n\t\t\thash3D( floor( pixScales.y * position.xyz ) )\n\t\t);\n\t\tfloat lerpFactor = fract( log2( pixScale ) );\n\t\tfloat x = ( 1.0 - lerpFactor ) * alpha.x + lerpFactor * alpha.y;\n\t\tfloat a = min( lerpFactor, 1.0 - lerpFactor );\n\t\tvec3 cases = vec3(\n\t\t\tx * x / ( 2.0 * a * ( 1.0 - a ) ),\n\t\t\t( x - 0.5 * a ) / ( 1.0 - a ),\n\t\t\t1.0 - ( ( 1.0 - x ) * ( 1.0 - x ) / ( 2.0 * a * ( 1.0 - a ) ) )\n\t\t);\n\t\tfloat threshold = ( x < ( 1.0 - a ) )\n\t\t\t? ( ( x < a ) ? cases.x : cases.y )\n\t\t\t: cases.z;\n\t\treturn clamp( threshold , 1.0e-6, 1.0 );\n\t}\n#endif";
+
 	var alphamap_fragment = "#ifdef USE_ALPHAMAP\n\tdiffuseColor.a *= texture2D( alphaMap, vAlphaMapUv ).g;\n#endif";
 
 	var alphamap_pars_fragment = "#ifdef USE_ALPHAMAP\n\tuniform sampler2D alphaMap;\n#endif";
@@ -17220,13 +14865,13 @@ var app = (function (child_process) {
 
 	var aomap_pars_fragment = "#ifdef USE_AOMAP\n\tuniform sampler2D aoMap;\n\tuniform float aoMapIntensity;\n#endif";
 
-	var begin_vertex = "vec3 transformed = vec3( position );";
+	var begin_vertex = "vec3 transformed = vec3( position );\n#ifdef USE_ALPHAHASH\n\tvPosition = vec3( position );\n#endif";
 
 	var beginnormal_vertex = "vec3 objectNormal = vec3( normal );\n#ifdef USE_TANGENT\n\tvec3 objectTangent = vec3( tangent.xyz );\n#endif";
 
 	var bsdfs = "float G_BlinnPhong_Implicit( ) {\n\treturn 0.25;\n}\nfloat D_BlinnPhong( const in float shininess, const in float dotNH ) {\n\treturn RECIPROCAL_PI * ( shininess * 0.5 + 1.0 ) * pow( dotNH, shininess );\n}\nvec3 BRDF_BlinnPhong( const in vec3 lightDir, const in vec3 viewDir, const in vec3 normal, const in vec3 specularColor, const in float shininess ) {\n\tvec3 halfDir = normalize( lightDir + viewDir );\n\tfloat dotNH = saturate( dot( normal, halfDir ) );\n\tfloat dotVH = saturate( dot( viewDir, halfDir ) );\n\tvec3 F = F_Schlick( specularColor, 1.0, dotVH );\n\tfloat G = G_BlinnPhong_Implicit( );\n\tfloat D = D_BlinnPhong( shininess, dotNH );\n\treturn F * ( G * D );\n} // validated";
 
-	var iridescence_fragment = "#ifdef USE_IRIDESCENCE\n\tconst mat3 XYZ_TO_REC709 = mat3(\n\t\t 3.2404542, -0.9692660,  0.0556434,\n\t\t-1.5371385,  1.8760108, -0.2040259,\n\t\t-0.4985314,  0.0415560,  1.0572252\n\t);\n\tvec3 Fresnel0ToIor( vec3 fresnel0 ) {\n\t\tvec3 sqrtF0 = sqrt( fresnel0 );\n\t\treturn ( vec3( 1.0 ) + sqrtF0 ) / ( vec3( 1.0 ) - sqrtF0 );\n\t}\n\tvec3 IorToFresnel0( vec3 transmittedIor, float incidentIor ) {\n\t\treturn pow2( ( transmittedIor - vec3( incidentIor ) ) / ( transmittedIor + vec3( incidentIor ) ) );\n\t}\n\tfloat IorToFresnel0( float transmittedIor, float incidentIor ) {\n\t\treturn pow2( ( transmittedIor - incidentIor ) / ( transmittedIor + incidentIor ));\n\t}\n\tvec3 evalSensitivity( float OPD, vec3 shift ) {\n\t\tfloat phase = 2.0 * PI * OPD * 1.0e-9;\n\t\tvec3 val = vec3( 5.4856e-13, 4.4201e-13, 5.2481e-13 );\n\t\tvec3 pos = vec3( 1.6810e+06, 1.7953e+06, 2.2084e+06 );\n\t\tvec3 var = vec3( 4.3278e+09, 9.3046e+09, 6.6121e+09 );\n\t\tvec3 xyz = val * sqrt( 2.0 * PI * var ) * cos( pos * phase + shift ) * exp( - pow2( phase ) * var );\n\t\txyz.x += 9.7470e-14 * sqrt( 2.0 * PI * 4.5282e+09 ) * cos( 2.2399e+06 * phase + shift[ 0 ] ) * exp( - 4.5282e+09 * pow2( phase ) );\n\t\txyz /= 1.0685e-7;\n\t\tvec3 rgb = XYZ_TO_REC709 * xyz;\n\t\treturn rgb;\n\t}\n\tvec3 evalIridescence( float outsideIOR, float eta2, float cosTheta1, float thinFilmThickness, vec3 baseF0 ) {\n\t\tvec3 I;\n\t\tfloat iridescenceIOR = mix( outsideIOR, eta2, smoothstep( 0.0, 0.03, thinFilmThickness ) );\n\t\tfloat sinTheta2Sq = pow2( outsideIOR / iridescenceIOR ) * ( 1.0 - pow2( cosTheta1 ) );\n\t\tfloat cosTheta2Sq = 1.0 - sinTheta2Sq;\n\t\tif ( cosTheta2Sq < 0.0 ) {\n\t\t\t return vec3( 1.0 );\n\t\t}\n\t\tfloat cosTheta2 = sqrt( cosTheta2Sq );\n\t\tfloat R0 = IorToFresnel0( iridescenceIOR, outsideIOR );\n\t\tfloat R12 = F_Schlick( R0, 1.0, cosTheta1 );\n\t\tfloat R21 = R12;\n\t\tfloat T121 = 1.0 - R12;\n\t\tfloat phi12 = 0.0;\n\t\tif ( iridescenceIOR < outsideIOR ) phi12 = PI;\n\t\tfloat phi21 = PI - phi12;\n\t\tvec3 baseIOR = Fresnel0ToIor( clamp( baseF0, 0.0, 0.9999 ) );\t\tvec3 R1 = IorToFresnel0( baseIOR, iridescenceIOR );\n\t\tvec3 R23 = F_Schlick( R1, 1.0, cosTheta2 );\n\t\tvec3 phi23 = vec3( 0.0 );\n\t\tif ( baseIOR[ 0 ] < iridescenceIOR ) phi23[ 0 ] = PI;\n\t\tif ( baseIOR[ 1 ] < iridescenceIOR ) phi23[ 1 ] = PI;\n\t\tif ( baseIOR[ 2 ] < iridescenceIOR ) phi23[ 2 ] = PI;\n\t\tfloat OPD = 2.0 * iridescenceIOR * thinFilmThickness * cosTheta2;\n\t\tvec3 phi = vec3( phi21 ) + phi23;\n\t\tvec3 R123 = clamp( R12 * R23, 1e-5, 0.9999 );\n\t\tvec3 r123 = sqrt( R123 );\n\t\tvec3 Rs = pow2( T121 ) * R23 / ( vec3( 1.0 ) - R123 );\n\t\tvec3 C0 = R12 + Rs;\n\t\tI = C0;\n\t\tvec3 Cm = Rs - T121;\n\t\tfor ( int m = 1; m <= 2; ++ m ) {\n\t\t\tCm *= r123;\n\t\t\tvec3 Sm = 2.0 * evalSensitivity( float( m ) * OPD, float( m ) * phi );\n\t\t\tI += Cm * Sm;\n\t\t}\n\t\treturn max( I, vec3( 0.0 ) );\n\t}\n#endif";
+	var iridescence_fragment = "#ifdef USE_IRIDESCENCE\n\tconst mat3 XYZ_TO_REC709 = mat3(\n\t\t 3.2404542, -0.9692660,  0.0556434,\n\t\t-1.5371385,  1.8760108, -0.2040259,\n\t\t-0.4985314,  0.0415560,  1.0572252\n\t);\n\tvec3 Fresnel0ToIor( vec3 fresnel0 ) {\n\t\tvec3 sqrtF0 = sqrt( fresnel0 );\n\t\treturn ( vec3( 1.0 ) + sqrtF0 ) / ( vec3( 1.0 ) - sqrtF0 );\n\t}\n\tvec3 IorToFresnel0( vec3 transmittedIor, float incidentIor ) {\n\t\treturn pow2( ( transmittedIor - vec3( incidentIor ) ) / ( transmittedIor + vec3( incidentIor ) ) );\n\t}\n\tfloat IorToFresnel0( float transmittedIor, float incidentIor ) {\n\t\treturn pow2( ( transmittedIor - incidentIor ) / ( transmittedIor + incidentIor ));\n\t}\n\tvec3 evalSensitivity( float OPD, vec3 shift ) {\n\t\tfloat phase = 2.0 * PI * OPD * 1.0e-9;\n\t\tvec3 val = vec3( 5.4856e-13, 4.4201e-13, 5.2481e-13 );\n\t\tvec3 pos = vec3( 1.6810e+06, 1.7953e+06, 2.2084e+06 );\n\t\tvec3 var = vec3( 4.3278e+09, 9.3046e+09, 6.6121e+09 );\n\t\tvec3 xyz = val * sqrt( 2.0 * PI * var ) * cos( pos * phase + shift ) * exp( - pow2( phase ) * var );\n\t\txyz.x += 9.7470e-14 * sqrt( 2.0 * PI * 4.5282e+09 ) * cos( 2.2399e+06 * phase + shift[ 0 ] ) * exp( - 4.5282e+09 * pow2( phase ) );\n\t\txyz /= 1.0685e-7;\n\t\tvec3 rgb = XYZ_TO_REC709 * xyz;\n\t\treturn rgb;\n\t}\n\tvec3 evalIridescence( float outsideIOR, float eta2, float cosTheta1, float thinFilmThickness, vec3 baseF0 ) {\n\t\tvec3 I;\n\t\tfloat iridescenceIOR = mix( outsideIOR, eta2, smoothstep( 0.0, 0.03, thinFilmThickness ) );\n\t\tfloat sinTheta2Sq = pow2( outsideIOR / iridescenceIOR ) * ( 1.0 - pow2( cosTheta1 ) );\n\t\tfloat cosTheta2Sq = 1.0 - sinTheta2Sq;\n\t\tif ( cosTheta2Sq < 0.0 ) {\n\t\t\treturn vec3( 1.0 );\n\t\t}\n\t\tfloat cosTheta2 = sqrt( cosTheta2Sq );\n\t\tfloat R0 = IorToFresnel0( iridescenceIOR, outsideIOR );\n\t\tfloat R12 = F_Schlick( R0, 1.0, cosTheta1 );\n\t\tfloat T121 = 1.0 - R12;\n\t\tfloat phi12 = 0.0;\n\t\tif ( iridescenceIOR < outsideIOR ) phi12 = PI;\n\t\tfloat phi21 = PI - phi12;\n\t\tvec3 baseIOR = Fresnel0ToIor( clamp( baseF0, 0.0, 0.9999 ) );\t\tvec3 R1 = IorToFresnel0( baseIOR, iridescenceIOR );\n\t\tvec3 R23 = F_Schlick( R1, 1.0, cosTheta2 );\n\t\tvec3 phi23 = vec3( 0.0 );\n\t\tif ( baseIOR[ 0 ] < iridescenceIOR ) phi23[ 0 ] = PI;\n\t\tif ( baseIOR[ 1 ] < iridescenceIOR ) phi23[ 1 ] = PI;\n\t\tif ( baseIOR[ 2 ] < iridescenceIOR ) phi23[ 2 ] = PI;\n\t\tfloat OPD = 2.0 * iridescenceIOR * thinFilmThickness * cosTheta2;\n\t\tvec3 phi = vec3( phi21 ) + phi23;\n\t\tvec3 R123 = clamp( R12 * R23, 1e-5, 0.9999 );\n\t\tvec3 r123 = sqrt( R123 );\n\t\tvec3 Rs = pow2( T121 ) * R23 / ( vec3( 1.0 ) - R123 );\n\t\tvec3 C0 = R12 + Rs;\n\t\tI = C0;\n\t\tvec3 Cm = Rs - T121;\n\t\tfor ( int m = 1; m <= 2; ++ m ) {\n\t\t\tCm *= r123;\n\t\t\tvec3 Sm = 2.0 * evalSensitivity( float( m ) * OPD, float( m ) * phi );\n\t\t\tI += Cm * Sm;\n\t\t}\n\t\treturn max( I, vec3( 0.0 ) );\n\t}\n#endif";
 
 	var bumpmap_pars_fragment = "#ifdef USE_BUMPMAP\n\tuniform sampler2D bumpMap;\n\tuniform float bumpScale;\n\tvec2 dHdxy_fwd() {\n\t\tvec2 dSTdx = dFdx( vBumpMapUv );\n\t\tvec2 dSTdy = dFdy( vBumpMapUv );\n\t\tfloat Hll = bumpScale * texture2D( bumpMap, vBumpMapUv ).x;\n\t\tfloat dBx = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdx ).x - Hll;\n\t\tfloat dBy = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdy ).x - Hll;\n\t\treturn vec2( dBx, dBy );\n\t}\n\tvec3 perturbNormalArb( vec3 surf_pos, vec3 surf_norm, vec2 dHdxy, float faceDirection ) {\n\t\tvec3 vSigmaX = dFdx( surf_pos.xyz );\n\t\tvec3 vSigmaY = dFdy( surf_pos.xyz );\n\t\tvec3 vN = surf_norm;\n\t\tvec3 R1 = cross( vSigmaY, vN );\n\t\tvec3 R2 = cross( vN, vSigmaX );\n\t\tfloat fDet = dot( vSigmaX, R1 ) * faceDirection;\n\t\tvec3 vGrad = sign( fDet ) * ( dHdxy.x * R1 + dHdxy.y * R2 );\n\t\treturn normalize( abs( fDet ) * surf_norm - vGrad );\n\t}\n#endif";
 
@@ -17246,7 +14891,7 @@ var app = (function (child_process) {
 
 	var color_vertex = "#if defined( USE_COLOR_ALPHA )\n\tvColor = vec4( 1.0 );\n#elif defined( USE_COLOR ) || defined( USE_INSTANCING_COLOR )\n\tvColor = vec3( 1.0 );\n#endif\n#ifdef USE_COLOR\n\tvColor *= color;\n#endif\n#ifdef USE_INSTANCING_COLOR\n\tvColor.xyz *= instanceColor.xyz;\n#endif";
 
-	var common = "#define PI 3.141592653589793\n#define PI2 6.283185307179586\n#define PI_HALF 1.5707963267948966\n#define RECIPROCAL_PI 0.3183098861837907\n#define RECIPROCAL_PI2 0.15915494309189535\n#define EPSILON 1e-6\n#ifndef saturate\n#define saturate( a ) clamp( a, 0.0, 1.0 )\n#endif\n#define whiteComplement( a ) ( 1.0 - saturate( a ) )\nfloat pow2( const in float x ) { return x*x; }\nvec3 pow2( const in vec3 x ) { return x*x; }\nfloat pow3( const in float x ) { return x*x*x; }\nfloat pow4( const in float x ) { float x2 = x*x; return x2*x2; }\nfloat max3( const in vec3 v ) { return max( max( v.x, v.y ), v.z ); }\nfloat average( const in vec3 v ) { return dot( v, vec3( 0.3333333 ) ); }\nhighp float rand( const in vec2 uv ) {\n\tconst highp float a = 12.9898, b = 78.233, c = 43758.5453;\n\thighp float dt = dot( uv.xy, vec2( a,b ) ), sn = mod( dt, PI );\n\treturn fract( sin( sn ) * c );\n}\n#ifdef HIGH_PRECISION\n\tfloat precisionSafeLength( vec3 v ) { return length( v ); }\n#else\n\tfloat precisionSafeLength( vec3 v ) {\n\t\tfloat maxComponent = max3( abs( v ) );\n\t\treturn length( v / maxComponent ) * maxComponent;\n\t}\n#endif\nstruct IncidentLight {\n\tvec3 color;\n\tvec3 direction;\n\tbool visible;\n};\nstruct ReflectedLight {\n\tvec3 directDiffuse;\n\tvec3 directSpecular;\n\tvec3 indirectDiffuse;\n\tvec3 indirectSpecular;\n};\nstruct GeometricContext {\n\tvec3 position;\n\tvec3 normal;\n\tvec3 viewDir;\n#ifdef USE_CLEARCOAT\n\tvec3 clearcoatNormal;\n#endif\n};\nvec3 transformDirection( in vec3 dir, in mat4 matrix ) {\n\treturn normalize( ( matrix * vec4( dir, 0.0 ) ).xyz );\n}\nvec3 inverseTransformDirection( in vec3 dir, in mat4 matrix ) {\n\treturn normalize( ( vec4( dir, 0.0 ) * matrix ).xyz );\n}\nmat3 transposeMat3( const in mat3 m ) {\n\tmat3 tmp;\n\ttmp[ 0 ] = vec3( m[ 0 ].x, m[ 1 ].x, m[ 2 ].x );\n\ttmp[ 1 ] = vec3( m[ 0 ].y, m[ 1 ].y, m[ 2 ].y );\n\ttmp[ 2 ] = vec3( m[ 0 ].z, m[ 1 ].z, m[ 2 ].z );\n\treturn tmp;\n}\nfloat luminance( const in vec3 rgb ) {\n\tconst vec3 weights = vec3( 0.2126729, 0.7151522, 0.0721750 );\n\treturn dot( weights, rgb );\n}\nbool isPerspectiveMatrix( mat4 m ) {\n\treturn m[ 2 ][ 3 ] == - 1.0;\n}\nvec2 equirectUv( in vec3 dir ) {\n\tfloat u = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n\tfloat v = asin( clamp( dir.y, - 1.0, 1.0 ) ) * RECIPROCAL_PI + 0.5;\n\treturn vec2( u, v );\n}\nvec3 BRDF_Lambert( const in vec3 diffuseColor ) {\n\treturn RECIPROCAL_PI * diffuseColor;\n}\nvec3 F_Schlick( const in vec3 f0, const in float f90, const in float dotVH ) {\n\tfloat fresnel = exp2( ( - 5.55473 * dotVH - 6.98316 ) * dotVH );\n\treturn f0 * ( 1.0 - fresnel ) + ( f90 * fresnel );\n}\nfloat F_Schlick( const in float f0, const in float f90, const in float dotVH ) {\n\tfloat fresnel = exp2( ( - 5.55473 * dotVH - 6.98316 ) * dotVH );\n\treturn f0 * ( 1.0 - fresnel ) + ( f90 * fresnel );\n} // validated";
+	var common = "#define PI 3.141592653589793\n#define PI2 6.283185307179586\n#define PI_HALF 1.5707963267948966\n#define RECIPROCAL_PI 0.3183098861837907\n#define RECIPROCAL_PI2 0.15915494309189535\n#define EPSILON 1e-6\n#ifndef saturate\n#define saturate( a ) clamp( a, 0.0, 1.0 )\n#endif\n#define whiteComplement( a ) ( 1.0 - saturate( a ) )\nfloat pow2( const in float x ) { return x*x; }\nvec3 pow2( const in vec3 x ) { return x*x; }\nfloat pow3( const in float x ) { return x*x*x; }\nfloat pow4( const in float x ) { float x2 = x*x; return x2*x2; }\nfloat max3( const in vec3 v ) { return max( max( v.x, v.y ), v.z ); }\nfloat average( const in vec3 v ) { return dot( v, vec3( 0.3333333 ) ); }\nhighp float rand( const in vec2 uv ) {\n\tconst highp float a = 12.9898, b = 78.233, c = 43758.5453;\n\thighp float dt = dot( uv.xy, vec2( a,b ) ), sn = mod( dt, PI );\n\treturn fract( sin( sn ) * c );\n}\n#ifdef HIGH_PRECISION\n\tfloat precisionSafeLength( vec3 v ) { return length( v ); }\n#else\n\tfloat precisionSafeLength( vec3 v ) {\n\t\tfloat maxComponent = max3( abs( v ) );\n\t\treturn length( v / maxComponent ) * maxComponent;\n\t}\n#endif\nstruct IncidentLight {\n\tvec3 color;\n\tvec3 direction;\n\tbool visible;\n};\nstruct ReflectedLight {\n\tvec3 directDiffuse;\n\tvec3 directSpecular;\n\tvec3 indirectDiffuse;\n\tvec3 indirectSpecular;\n};\nstruct GeometricContext {\n\tvec3 position;\n\tvec3 normal;\n\tvec3 viewDir;\n#ifdef USE_CLEARCOAT\n\tvec3 clearcoatNormal;\n#endif\n};\n#ifdef USE_ALPHAHASH\n\tvarying vec3 vPosition;\n#endif\nvec3 transformDirection( in vec3 dir, in mat4 matrix ) {\n\treturn normalize( ( matrix * vec4( dir, 0.0 ) ).xyz );\n}\nvec3 inverseTransformDirection( in vec3 dir, in mat4 matrix ) {\n\treturn normalize( ( vec4( dir, 0.0 ) * matrix ).xyz );\n}\nmat3 transposeMat3( const in mat3 m ) {\n\tmat3 tmp;\n\ttmp[ 0 ] = vec3( m[ 0 ].x, m[ 1 ].x, m[ 2 ].x );\n\ttmp[ 1 ] = vec3( m[ 0 ].y, m[ 1 ].y, m[ 2 ].y );\n\ttmp[ 2 ] = vec3( m[ 0 ].z, m[ 1 ].z, m[ 2 ].z );\n\treturn tmp;\n}\nfloat luminance( const in vec3 rgb ) {\n\tconst vec3 weights = vec3( 0.2126729, 0.7151522, 0.0721750 );\n\treturn dot( weights, rgb );\n}\nbool isPerspectiveMatrix( mat4 m ) {\n\treturn m[ 2 ][ 3 ] == - 1.0;\n}\nvec2 equirectUv( in vec3 dir ) {\n\tfloat u = atan( dir.z, dir.x ) * RECIPROCAL_PI2 + 0.5;\n\tfloat v = asin( clamp( dir.y, - 1.0, 1.0 ) ) * RECIPROCAL_PI + 0.5;\n\treturn vec2( u, v );\n}\nvec3 BRDF_Lambert( const in vec3 diffuseColor ) {\n\treturn RECIPROCAL_PI * diffuseColor;\n}\nvec3 F_Schlick( const in vec3 f0, const in float f90, const in float dotVH ) {\n\tfloat fresnel = exp2( ( - 5.55473 * dotVH - 6.98316 ) * dotVH );\n\treturn f0 * ( 1.0 - fresnel ) + ( f90 * fresnel );\n}\nfloat F_Schlick( const in float f0, const in float f90, const in float dotVH ) {\n\tfloat fresnel = exp2( ( - 5.55473 * dotVH - 6.98316 ) * dotVH );\n\treturn f0 * ( 1.0 - fresnel ) + ( f90 * fresnel );\n} // validated";
 
 	var cube_uv_reflection_fragment = "#ifdef ENVMAP_TYPE_CUBE_UV\n\t#define cubeUV_minMipLevel 4.0\n\t#define cubeUV_minTileSize 16.0\n\tfloat getFace( vec3 direction ) {\n\t\tvec3 absDirection = abs( direction );\n\t\tfloat face = - 1.0;\n\t\tif ( absDirection.x > absDirection.z ) {\n\t\t\tif ( absDirection.x > absDirection.y )\n\t\t\t\tface = direction.x > 0.0 ? 0.0 : 3.0;\n\t\t\telse\n\t\t\t\tface = direction.y > 0.0 ? 1.0 : 4.0;\n\t\t} else {\n\t\t\tif ( absDirection.z > absDirection.y )\n\t\t\t\tface = direction.z > 0.0 ? 2.0 : 5.0;\n\t\t\telse\n\t\t\t\tface = direction.y > 0.0 ? 1.0 : 4.0;\n\t\t}\n\t\treturn face;\n\t}\n\tvec2 getUV( vec3 direction, float face ) {\n\t\tvec2 uv;\n\t\tif ( face == 0.0 ) {\n\t\t\tuv = vec2( direction.z, direction.y ) / abs( direction.x );\n\t\t} else if ( face == 1.0 ) {\n\t\t\tuv = vec2( - direction.x, - direction.z ) / abs( direction.y );\n\t\t} else if ( face == 2.0 ) {\n\t\t\tuv = vec2( - direction.x, direction.y ) / abs( direction.z );\n\t\t} else if ( face == 3.0 ) {\n\t\t\tuv = vec2( - direction.z, direction.y ) / abs( direction.x );\n\t\t} else if ( face == 4.0 ) {\n\t\t\tuv = vec2( - direction.x, direction.z ) / abs( direction.y );\n\t\t} else {\n\t\t\tuv = vec2( direction.x, direction.y ) / abs( direction.z );\n\t\t}\n\t\treturn 0.5 * ( uv + 1.0 );\n\t}\n\tvec3 bilinearCubeUV( sampler2D envMap, vec3 direction, float mipInt ) {\n\t\tfloat face = getFace( direction );\n\t\tfloat filterInt = max( cubeUV_minMipLevel - mipInt, 0.0 );\n\t\tmipInt = max( mipInt, cubeUV_minMipLevel );\n\t\tfloat faceSize = exp2( mipInt );\n\t\thighp vec2 uv = getUV( direction, face ) * ( faceSize - 2.0 ) + 1.0;\n\t\tif ( face > 2.0 ) {\n\t\t\tuv.y += faceSize;\n\t\t\tface -= 3.0;\n\t\t}\n\t\tuv.x += face * faceSize;\n\t\tuv.x += filterInt * 3.0 * cubeUV_minTileSize;\n\t\tuv.y += 4.0 * ( exp2( CUBEUV_MAX_MIP ) - faceSize );\n\t\tuv.x *= CUBEUV_TEXEL_WIDTH;\n\t\tuv.y *= CUBEUV_TEXEL_HEIGHT;\n\t\t#ifdef texture2DGradEXT\n\t\t\treturn texture2DGradEXT( envMap, uv, vec2( 0.0 ), vec2( 0.0 ) ).rgb;\n\t\t#else\n\t\t\treturn texture2D( envMap, uv ).rgb;\n\t\t#endif\n\t}\n\t#define cubeUV_r0 1.0\n\t#define cubeUV_v0 0.339\n\t#define cubeUV_m0 - 2.0\n\t#define cubeUV_r1 0.8\n\t#define cubeUV_v1 0.276\n\t#define cubeUV_m1 - 1.0\n\t#define cubeUV_r4 0.4\n\t#define cubeUV_v4 0.046\n\t#define cubeUV_m4 2.0\n\t#define cubeUV_r5 0.305\n\t#define cubeUV_v5 0.016\n\t#define cubeUV_m5 3.0\n\t#define cubeUV_r6 0.21\n\t#define cubeUV_v6 0.0038\n\t#define cubeUV_m6 4.0\n\tfloat roughnessToMip( float roughness ) {\n\t\tfloat mip = 0.0;\n\t\tif ( roughness >= cubeUV_r1 ) {\n\t\t\tmip = ( cubeUV_r0 - roughness ) * ( cubeUV_m1 - cubeUV_m0 ) / ( cubeUV_r0 - cubeUV_r1 ) + cubeUV_m0;\n\t\t} else if ( roughness >= cubeUV_r4 ) {\n\t\t\tmip = ( cubeUV_r1 - roughness ) * ( cubeUV_m4 - cubeUV_m1 ) / ( cubeUV_r1 - cubeUV_r4 ) + cubeUV_m1;\n\t\t} else if ( roughness >= cubeUV_r5 ) {\n\t\t\tmip = ( cubeUV_r4 - roughness ) * ( cubeUV_m5 - cubeUV_m4 ) / ( cubeUV_r4 - cubeUV_r5 ) + cubeUV_m4;\n\t\t} else if ( roughness >= cubeUV_r6 ) {\n\t\t\tmip = ( cubeUV_r5 - roughness ) * ( cubeUV_m6 - cubeUV_m5 ) / ( cubeUV_r5 - cubeUV_r6 ) + cubeUV_m5;\n\t\t} else {\n\t\t\tmip = - 2.0 * log2( 1.16 * roughness );\t\t}\n\t\treturn mip;\n\t}\n\tvec4 textureCubeUV( sampler2D envMap, vec3 sampleDir, float roughness ) {\n\t\tfloat mip = clamp( roughnessToMip( roughness ), cubeUV_m0, CUBEUV_MAX_MIP );\n\t\tfloat mipF = fract( mip );\n\t\tfloat mipInt = floor( mip );\n\t\tvec3 color0 = bilinearCubeUV( envMap, sampleDir, mipInt );\n\t\tif ( mipF == 0.0 ) {\n\t\t\treturn vec4( color0, 1.0 );\n\t\t} else {\n\t\t\tvec3 color1 = bilinearCubeUV( envMap, sampleDir, mipInt + 1.0 );\n\t\t\treturn vec4( mix( color0, color1, mipF ), 1.0 );\n\t\t}\n\t}\n#endif";
 
@@ -17260,9 +14905,9 @@ var app = (function (child_process) {
 
 	var emissivemap_pars_fragment = "#ifdef USE_EMISSIVEMAP\n\tuniform sampler2D emissiveMap;\n#endif";
 
-	var encodings_fragment = "gl_FragColor = linearToOutputTexel( gl_FragColor );";
+	var colorspace_fragment = "gl_FragColor = linearToOutputTexel( gl_FragColor );";
 
-	var encodings_pars_fragment = "vec4 LinearToLinear( in vec4 value ) {\n\treturn value;\n}\nvec4 LinearTosRGB( in vec4 value ) {\n\treturn vec4( mix( pow( value.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), value.rgb * 12.92, vec3( lessThanEqual( value.rgb, vec3( 0.0031308 ) ) ) ), value.a );\n}";
+	var colorspace_pars_fragment = "vec4 LinearToLinear( in vec4 value ) {\n\treturn value;\n}\nvec4 LinearTosRGB( in vec4 value ) {\n\treturn vec4( mix( pow( value.rgb, vec3( 0.41666 ) ) * 1.055 - vec3( 0.055 ), value.rgb * 12.92, vec3( lessThanEqual( value.rgb, vec3( 0.0031308 ) ) ) ), value.a );\n}";
 
 	var envmap_fragment = "#ifdef USE_ENVMAP\n\t#ifdef ENV_WORLDPOS\n\t\tvec3 cameraToFrag;\n\t\tif ( isOrthographic ) {\n\t\t\tcameraToFrag = normalize( vec3( - viewMatrix[ 0 ][ 2 ], - viewMatrix[ 1 ][ 2 ], - viewMatrix[ 2 ][ 2 ] ) );\n\t\t} else {\n\t\t\tcameraToFrag = normalize( vWorldPosition - cameraPosition );\n\t\t}\n\t\tvec3 worldNormal = inverseTransformDirection( normal, viewMatrix );\n\t\t#ifdef ENVMAP_MODE_REFLECTION\n\t\t\tvec3 reflectVec = reflect( cameraToFrag, worldNormal );\n\t\t#else\n\t\t\tvec3 reflectVec = refract( cameraToFrag, worldNormal, refractionRatio );\n\t\t#endif\n\t#else\n\t\tvec3 reflectVec = vReflect;\n\t#endif\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 envColor = textureCube( envMap, vec3( flipEnvMap * reflectVec.x, reflectVec.yz ) );\n\t#else\n\t\tvec4 envColor = vec4( 0.0 );\n\t#endif\n\t#ifdef ENVMAP_BLENDING_MULTIPLY\n\t\toutgoingLight = mix( outgoingLight, outgoingLight * envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_MIX )\n\t\toutgoingLight = mix( outgoingLight, envColor.xyz, specularStrength * reflectivity );\n\t#elif defined( ENVMAP_BLENDING_ADD )\n\t\toutgoingLight += envColor.xyz * specularStrength * reflectivity;\n\t#endif\n#endif";
 
@@ -17342,7 +14987,7 @@ var app = (function (child_process) {
 
 	var morphtarget_vertex = "#ifdef USE_MORPHTARGETS\n\ttransformed *= morphTargetBaseInfluence;\n\t#ifdef MORPHTARGETS_TEXTURE\n\t\tfor ( int i = 0; i < MORPHTARGETS_COUNT; i ++ ) {\n\t\t\tif ( morphTargetInfluences[ i ] != 0.0 ) transformed += getMorph( gl_VertexID, i, 0 ).xyz * morphTargetInfluences[ i ];\n\t\t}\n\t#else\n\t\ttransformed += morphTarget0 * morphTargetInfluences[ 0 ];\n\t\ttransformed += morphTarget1 * morphTargetInfluences[ 1 ];\n\t\ttransformed += morphTarget2 * morphTargetInfluences[ 2 ];\n\t\ttransformed += morphTarget3 * morphTargetInfluences[ 3 ];\n\t\t#ifndef USE_MORPHNORMALS\n\t\t\ttransformed += morphTarget4 * morphTargetInfluences[ 4 ];\n\t\t\ttransformed += morphTarget5 * morphTargetInfluences[ 5 ];\n\t\t\ttransformed += morphTarget6 * morphTargetInfluences[ 6 ];\n\t\t\ttransformed += morphTarget7 * morphTargetInfluences[ 7 ];\n\t\t#endif\n\t#endif\n#endif";
 
-	var normal_fragment_begin = "float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;\n#ifdef FLAT_SHADED\n\tvec3 fdx = dFdx( vViewPosition );\n\tvec3 fdy = dFdy( vViewPosition );\n\tvec3 normal = normalize( cross( fdx, fdy ) );\n#else\n\tvec3 normal = normalize( vNormal );\n\t#ifdef DOUBLE_SIDED\n\t\tnormal *= faceDirection;\n\t#endif\n#endif\n#if defined( USE_NORMALMAP_TANGENTSPACE ) || defined( USE_CLEARCOAT_NORMALMAP ) || defined( USE_ANISOTROPY )\n\t#ifdef USE_TANGENT\n\t\tmat3 tbn = mat3( normalize( vTangent ), normalize( vBitangent ), normal );\n\t#else\n\t\tmat3 tbn = getTangentFrame( - vViewPosition, normal, vNormalMapUv );\n\t#endif\n\t#if defined( DOUBLE_SIDED ) && ! defined( FLAT_SHADED )\n\t\ttbn[0] *= faceDirection;\n\t\ttbn[1] *= faceDirection;\n\t#endif\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\t#ifdef USE_TANGENT\n\t\tmat3 tbn2 = mat3( normalize( vTangent ), normalize( vBitangent ), normal );\n\t#else\n\t\tmat3 tbn2 = getTangentFrame( - vViewPosition, normal, vClearcoatNormalMapUv );\n\t#endif\n\t#if defined( DOUBLE_SIDED ) && ! defined( FLAT_SHADED )\n\t\ttbn2[0] *= faceDirection;\n\t\ttbn2[1] *= faceDirection;\n\t#endif\n#endif\nvec3 geometryNormal = normal;";
+	var normal_fragment_begin = "float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;\n#ifdef FLAT_SHADED\n\tvec3 fdx = dFdx( vViewPosition );\n\tvec3 fdy = dFdy( vViewPosition );\n\tvec3 normal = normalize( cross( fdx, fdy ) );\n#else\n\tvec3 normal = normalize( vNormal );\n\t#ifdef DOUBLE_SIDED\n\t\tnormal *= faceDirection;\n\t#endif\n#endif\n#if defined( USE_NORMALMAP_TANGENTSPACE ) || defined( USE_CLEARCOAT_NORMALMAP ) || defined( USE_ANISOTROPY )\n\t#ifdef USE_TANGENT\n\t\tmat3 tbn = mat3( normalize( vTangent ), normalize( vBitangent ), normal );\n\t#else\n\t\tmat3 tbn = getTangentFrame( - vViewPosition, normal,\n\t\t#if defined( USE_NORMALMAP )\n\t\t\tvNormalMapUv\n\t\t#elif defined( USE_CLEARCOAT_NORMALMAP )\n\t\t\tvClearcoatNormalMapUv\n\t\t#else\n\t\t\tvUv\n\t\t#endif\n\t\t);\n\t#endif\n\t#if defined( DOUBLE_SIDED ) && ! defined( FLAT_SHADED )\n\t\ttbn[0] *= faceDirection;\n\t\ttbn[1] *= faceDirection;\n\t#endif\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\t#ifdef USE_TANGENT\n\t\tmat3 tbn2 = mat3( normalize( vTangent ), normalize( vBitangent ), normal );\n\t#else\n\t\tmat3 tbn2 = getTangentFrame( - vViewPosition, normal, vClearcoatNormalMapUv );\n\t#endif\n\t#if defined( DOUBLE_SIDED ) && ! defined( FLAT_SHADED )\n\t\ttbn2[0] *= faceDirection;\n\t\ttbn2[1] *= faceDirection;\n\t#endif\n#endif\nvec3 geometryNormal = normal;";
 
 	var normal_fragment_maps = "#ifdef USE_NORMALMAP_OBJECTSPACE\n\tnormal = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;\n\t#ifdef FLIP_SIDED\n\t\tnormal = - normal;\n\t#endif\n\t#ifdef DOUBLE_SIDED\n\t\tnormal = normal * faceDirection;\n\t#endif\n\tnormal = normalize( normalMatrix * normal );\n#elif defined( USE_NORMALMAP_TANGENTSPACE )\n\tvec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;\n\tmapN.xy *= normalScale;\n\tnormal = normalize( tbn * mapN );\n#elif defined( USE_BUMPMAP )\n\tnormal = perturbNormalArb( - vViewPosition, normal, dHdxy_fwd(), faceDirection );\n#endif";
 
@@ -17362,7 +15007,7 @@ var app = (function (child_process) {
 
 	var iridescence_pars_fragment = "#ifdef USE_IRIDESCENCEMAP\n\tuniform sampler2D iridescenceMap;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tuniform sampler2D iridescenceThicknessMap;\n#endif";
 
-	var output_fragment = "#ifdef OPAQUE\ndiffuseColor.a = 1.0;\n#endif\n#ifdef USE_TRANSMISSION\ndiffuseColor.a *= material.transmissionAlpha;\n#endif\ngl_FragColor = vec4( outgoingLight, diffuseColor.a );";
+	var opaque_fragment = "#ifdef OPAQUE\ndiffuseColor.a = 1.0;\n#endif\n#ifdef USE_TRANSMISSION\ndiffuseColor.a *= material.transmissionAlpha;\n#endif\ngl_FragColor = vec4( outgoingLight, diffuseColor.a );";
 
 	var packing = "vec3 packNormalToRGB( const in vec3 normal ) {\n\treturn normalize( normal ) * 0.5 + 0.5;\n}\nvec3 unpackRGBToNormal( const in vec3 rgb ) {\n\treturn 2.0 * rgb.xyz - 1.0;\n}\nconst float PackUpscale = 256. / 255.;const float UnpackDownscale = 255. / 256.;\nconst vec3 PackFactors = vec3( 256. * 256. * 256., 256. * 256., 256. );\nconst vec4 UnpackFactors = UnpackDownscale / vec4( PackFactors, 1. );\nconst float ShiftRight8 = 1. / 256.;\nvec4 packDepthToRGBA( const in float v ) {\n\tvec4 r = vec4( fract( v * PackFactors ), v );\n\tr.yzw -= r.xyz * ShiftRight8;\treturn r * PackUpscale;\n}\nfloat unpackRGBAToDepth( const in vec4 v ) {\n\treturn dot( v, UnpackFactors );\n}\nvec2 packDepthToRG( in highp float v ) {\n\treturn packDepthToRGBA( v ).yx;\n}\nfloat unpackRGToDepth( const in highp vec2 v ) {\n\treturn unpackRGBAToDepth( vec4( v.xy, 0.0, 0.0 ) );\n}\nvec4 pack2HalfToRGBA( vec2 v ) {\n\tvec4 r = vec4( v.x, fract( v.x * 255.0 ), v.y, fract( v.y * 255.0 ) );\n\treturn vec4( r.x - r.y / 255.0, r.y, r.z - r.w / 255.0, r.w );\n}\nvec2 unpackRGBATo2Half( vec4 v ) {\n\treturn vec2( v.x + ( v.y / 255.0 ), v.z + ( v.w / 255.0 ) );\n}\nfloat viewZToOrthographicDepth( const in float viewZ, const in float near, const in float far ) {\n\treturn ( viewZ + near ) / ( near - far );\n}\nfloat orthographicDepthToViewZ( const in float depth, const in float near, const in float far ) {\n\treturn depth * ( near - far ) - near;\n}\nfloat viewZToPerspectiveDepth( const in float viewZ, const in float near, const in float far ) {\n\treturn ( ( near + viewZ ) * far ) / ( ( far - near ) * viewZ );\n}\nfloat perspectiveDepthToViewZ( const in float depth, const in float near, const in float far ) {\n\treturn ( near * far ) / ( ( far - near ) * depth - far );\n}";
 
@@ -17406,53 +15051,53 @@ var app = (function (child_process) {
 
 	var transmission_pars_fragment = "#ifdef USE_TRANSMISSION\n\tuniform float transmission;\n\tuniform float thickness;\n\tuniform float attenuationDistance;\n\tuniform vec3 attenuationColor;\n\t#ifdef USE_TRANSMISSIONMAP\n\t\tuniform sampler2D transmissionMap;\n\t#endif\n\t#ifdef USE_THICKNESSMAP\n\t\tuniform sampler2D thicknessMap;\n\t#endif\n\tuniform vec2 transmissionSamplerSize;\n\tuniform sampler2D transmissionSamplerMap;\n\tuniform mat4 modelMatrix;\n\tuniform mat4 projectionMatrix;\n\tvarying vec3 vWorldPosition;\n\tfloat w0( float a ) {\n\t\treturn ( 1.0 / 6.0 ) * ( a * ( a * ( - a + 3.0 ) - 3.0 ) + 1.0 );\n\t}\n\tfloat w1( float a ) {\n\t\treturn ( 1.0 / 6.0 ) * ( a *  a * ( 3.0 * a - 6.0 ) + 4.0 );\n\t}\n\tfloat w2( float a ){\n\t\treturn ( 1.0 / 6.0 ) * ( a * ( a * ( - 3.0 * a + 3.0 ) + 3.0 ) + 1.0 );\n\t}\n\tfloat w3( float a ) {\n\t\treturn ( 1.0 / 6.0 ) * ( a * a * a );\n\t}\n\tfloat g0( float a ) {\n\t\treturn w0( a ) + w1( a );\n\t}\n\tfloat g1( float a ) {\n\t\treturn w2( a ) + w3( a );\n\t}\n\tfloat h0( float a ) {\n\t\treturn - 1.0 + w1( a ) / ( w0( a ) + w1( a ) );\n\t}\n\tfloat h1( float a ) {\n\t\treturn 1.0 + w3( a ) / ( w2( a ) + w3( a ) );\n\t}\n\tvec4 bicubic( sampler2D tex, vec2 uv, vec4 texelSize, float lod ) {\n\t\tuv = uv * texelSize.zw + 0.5;\n\t\tvec2 iuv = floor( uv );\n\t\tvec2 fuv = fract( uv );\n\t\tfloat g0x = g0( fuv.x );\n\t\tfloat g1x = g1( fuv.x );\n\t\tfloat h0x = h0( fuv.x );\n\t\tfloat h1x = h1( fuv.x );\n\t\tfloat h0y = h0( fuv.y );\n\t\tfloat h1y = h1( fuv.y );\n\t\tvec2 p0 = ( vec2( iuv.x + h0x, iuv.y + h0y ) - 0.5 ) * texelSize.xy;\n\t\tvec2 p1 = ( vec2( iuv.x + h1x, iuv.y + h0y ) - 0.5 ) * texelSize.xy;\n\t\tvec2 p2 = ( vec2( iuv.x + h0x, iuv.y + h1y ) - 0.5 ) * texelSize.xy;\n\t\tvec2 p3 = ( vec2( iuv.x + h1x, iuv.y + h1y ) - 0.5 ) * texelSize.xy;\n\t\treturn g0( fuv.y ) * ( g0x * textureLod( tex, p0, lod ) + g1x * textureLod( tex, p1, lod ) ) +\n\t\t\tg1( fuv.y ) * ( g0x * textureLod( tex, p2, lod ) + g1x * textureLod( tex, p3, lod ) );\n\t}\n\tvec4 textureBicubic( sampler2D sampler, vec2 uv, float lod ) {\n\t\tvec2 fLodSize = vec2( textureSize( sampler, int( lod ) ) );\n\t\tvec2 cLodSize = vec2( textureSize( sampler, int( lod + 1.0 ) ) );\n\t\tvec2 fLodSizeInv = 1.0 / fLodSize;\n\t\tvec2 cLodSizeInv = 1.0 / cLodSize;\n\t\tvec4 fSample = bicubic( sampler, uv, vec4( fLodSizeInv, fLodSize ), floor( lod ) );\n\t\tvec4 cSample = bicubic( sampler, uv, vec4( cLodSizeInv, cLodSize ), ceil( lod ) );\n\t\treturn mix( fSample, cSample, fract( lod ) );\n\t}\n\tvec3 getVolumeTransmissionRay( const in vec3 n, const in vec3 v, const in float thickness, const in float ior, const in mat4 modelMatrix ) {\n\t\tvec3 refractionVector = refract( - v, normalize( n ), 1.0 / ior );\n\t\tvec3 modelScale;\n\t\tmodelScale.x = length( vec3( modelMatrix[ 0 ].xyz ) );\n\t\tmodelScale.y = length( vec3( modelMatrix[ 1 ].xyz ) );\n\t\tmodelScale.z = length( vec3( modelMatrix[ 2 ].xyz ) );\n\t\treturn normalize( refractionVector ) * thickness * modelScale;\n\t}\n\tfloat applyIorToRoughness( const in float roughness, const in float ior ) {\n\t\treturn roughness * clamp( ior * 2.0 - 2.0, 0.0, 1.0 );\n\t}\n\tvec4 getTransmissionSample( const in vec2 fragCoord, const in float roughness, const in float ior ) {\n\t\tfloat lod = log2( transmissionSamplerSize.x ) * applyIorToRoughness( roughness, ior );\n\t\treturn textureBicubic( transmissionSamplerMap, fragCoord.xy, lod );\n\t}\n\tvec3 volumeAttenuation( const in float transmissionDistance, const in vec3 attenuationColor, const in float attenuationDistance ) {\n\t\tif ( isinf( attenuationDistance ) ) {\n\t\t\treturn vec3( 1.0 );\n\t\t} else {\n\t\t\tvec3 attenuationCoefficient = -log( attenuationColor ) / attenuationDistance;\n\t\t\tvec3 transmittance = exp( - attenuationCoefficient * transmissionDistance );\t\t\treturn transmittance;\n\t\t}\n\t}\n\tvec4 getIBLVolumeRefraction( const in vec3 n, const in vec3 v, const in float roughness, const in vec3 diffuseColor,\n\t\tconst in vec3 specularColor, const in float specularF90, const in vec3 position, const in mat4 modelMatrix,\n\t\tconst in mat4 viewMatrix, const in mat4 projMatrix, const in float ior, const in float thickness,\n\t\tconst in vec3 attenuationColor, const in float attenuationDistance ) {\n\t\tvec3 transmissionRay = getVolumeTransmissionRay( n, v, thickness, ior, modelMatrix );\n\t\tvec3 refractedRayExit = position + transmissionRay;\n\t\tvec4 ndcPos = projMatrix * viewMatrix * vec4( refractedRayExit, 1.0 );\n\t\tvec2 refractionCoords = ndcPos.xy / ndcPos.w;\n\t\trefractionCoords += 1.0;\n\t\trefractionCoords /= 2.0;\n\t\tvec4 transmittedLight = getTransmissionSample( refractionCoords, roughness, ior );\n\t\tvec3 transmittance = diffuseColor * volumeAttenuation( length( transmissionRay ), attenuationColor, attenuationDistance );\n\t\tvec3 attenuatedColor = transmittance * transmittedLight.rgb;\n\t\tvec3 F = EnvironmentBRDF( n, v, specularColor, specularF90, roughness );\n\t\tfloat transmittanceFactor = ( transmittance.r + transmittance.g + transmittance.b ) / 3.0;\n\t\treturn vec4( ( 1.0 - F ) * attenuatedColor, 1.0 - ( 1.0 - transmittedLight.a ) * transmittanceFactor );\n\t}\n#endif";
 
-	var uv_pars_fragment = "#ifdef USE_UV\n\tvarying vec2 vUv;\n#endif\n#ifdef USE_MAP\n\tvarying vec2 vMapUv;\n#endif\n#ifdef USE_ALPHAMAP\n\tvarying vec2 vAlphaMapUv;\n#endif\n#ifdef USE_LIGHTMAP\n\tvarying vec2 vLightMapUv;\n#endif\n#ifdef USE_AOMAP\n\tvarying vec2 vAoMapUv;\n#endif\n#ifdef USE_BUMPMAP\n\tvarying vec2 vBumpMapUv;\n#endif\n#ifdef USE_NORMALMAP\n\tvarying vec2 vNormalMapUv;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tvarying vec2 vEmissiveMapUv;\n#endif\n#ifdef USE_METALNESSMAP\n\tvarying vec2 vMetalnessMapUv;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tvarying vec2 vRoughnessMapUv;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tvarying vec2 vAnisotropyMapUv;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tvarying vec2 vClearcoatMapUv;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tvarying vec2 vClearcoatNormalMapUv;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tvarying vec2 vClearcoatRoughnessMapUv;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tvarying vec2 vIridescenceMapUv;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tvarying vec2 vIridescenceThicknessMapUv;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tvarying vec2 vSheenColorMapUv;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tvarying vec2 vSheenRoughnessMapUv;\n#endif\n#ifdef USE_SPECULARMAP\n\tvarying vec2 vSpecularMapUv;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tvarying vec2 vSpecularColorMapUv;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tvarying vec2 vSpecularIntensityMapUv;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tuniform mat3 transmissionMapTransform;\n\tvarying vec2 vTransmissionMapUv;\n#endif\n#ifdef USE_THICKNESSMAP\n\tuniform mat3 thicknessMapTransform;\n\tvarying vec2 vThicknessMapUv;\n#endif";
+	var uv_pars_fragment = "#if defined( USE_UV ) || defined( USE_ANISOTROPY )\n\tvarying vec2 vUv;\n#endif\n#ifdef USE_MAP\n\tvarying vec2 vMapUv;\n#endif\n#ifdef USE_ALPHAMAP\n\tvarying vec2 vAlphaMapUv;\n#endif\n#ifdef USE_LIGHTMAP\n\tvarying vec2 vLightMapUv;\n#endif\n#ifdef USE_AOMAP\n\tvarying vec2 vAoMapUv;\n#endif\n#ifdef USE_BUMPMAP\n\tvarying vec2 vBumpMapUv;\n#endif\n#ifdef USE_NORMALMAP\n\tvarying vec2 vNormalMapUv;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tvarying vec2 vEmissiveMapUv;\n#endif\n#ifdef USE_METALNESSMAP\n\tvarying vec2 vMetalnessMapUv;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tvarying vec2 vRoughnessMapUv;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tvarying vec2 vAnisotropyMapUv;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tvarying vec2 vClearcoatMapUv;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tvarying vec2 vClearcoatNormalMapUv;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tvarying vec2 vClearcoatRoughnessMapUv;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tvarying vec2 vIridescenceMapUv;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tvarying vec2 vIridescenceThicknessMapUv;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tvarying vec2 vSheenColorMapUv;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tvarying vec2 vSheenRoughnessMapUv;\n#endif\n#ifdef USE_SPECULARMAP\n\tvarying vec2 vSpecularMapUv;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tvarying vec2 vSpecularColorMapUv;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tvarying vec2 vSpecularIntensityMapUv;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tuniform mat3 transmissionMapTransform;\n\tvarying vec2 vTransmissionMapUv;\n#endif\n#ifdef USE_THICKNESSMAP\n\tuniform mat3 thicknessMapTransform;\n\tvarying vec2 vThicknessMapUv;\n#endif";
 
-	var uv_pars_vertex = "#ifdef USE_UV\n\tvarying vec2 vUv;\n#endif\n#ifdef USE_MAP\n\tuniform mat3 mapTransform;\n\tvarying vec2 vMapUv;\n#endif\n#ifdef USE_ALPHAMAP\n\tuniform mat3 alphaMapTransform;\n\tvarying vec2 vAlphaMapUv;\n#endif\n#ifdef USE_LIGHTMAP\n\tuniform mat3 lightMapTransform;\n\tvarying vec2 vLightMapUv;\n#endif\n#ifdef USE_AOMAP\n\tuniform mat3 aoMapTransform;\n\tvarying vec2 vAoMapUv;\n#endif\n#ifdef USE_BUMPMAP\n\tuniform mat3 bumpMapTransform;\n\tvarying vec2 vBumpMapUv;\n#endif\n#ifdef USE_NORMALMAP\n\tuniform mat3 normalMapTransform;\n\tvarying vec2 vNormalMapUv;\n#endif\n#ifdef USE_DISPLACEMENTMAP\n\tuniform mat3 displacementMapTransform;\n\tvarying vec2 vDisplacementMapUv;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tuniform mat3 emissiveMapTransform;\n\tvarying vec2 vEmissiveMapUv;\n#endif\n#ifdef USE_METALNESSMAP\n\tuniform mat3 metalnessMapTransform;\n\tvarying vec2 vMetalnessMapUv;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tuniform mat3 roughnessMapTransform;\n\tvarying vec2 vRoughnessMapUv;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tuniform mat3 anisotropyMapTransform;\n\tvarying vec2 vAnisotropyMapUv;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tuniform mat3 clearcoatMapTransform;\n\tvarying vec2 vClearcoatMapUv;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tuniform mat3 clearcoatNormalMapTransform;\n\tvarying vec2 vClearcoatNormalMapUv;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tuniform mat3 clearcoatRoughnessMapTransform;\n\tvarying vec2 vClearcoatRoughnessMapUv;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tuniform mat3 sheenColorMapTransform;\n\tvarying vec2 vSheenColorMapUv;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tuniform mat3 sheenRoughnessMapTransform;\n\tvarying vec2 vSheenRoughnessMapUv;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tuniform mat3 iridescenceMapTransform;\n\tvarying vec2 vIridescenceMapUv;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tuniform mat3 iridescenceThicknessMapTransform;\n\tvarying vec2 vIridescenceThicknessMapUv;\n#endif\n#ifdef USE_SPECULARMAP\n\tuniform mat3 specularMapTransform;\n\tvarying vec2 vSpecularMapUv;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tuniform mat3 specularColorMapTransform;\n\tvarying vec2 vSpecularColorMapUv;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tuniform mat3 specularIntensityMapTransform;\n\tvarying vec2 vSpecularIntensityMapUv;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tuniform mat3 transmissionMapTransform;\n\tvarying vec2 vTransmissionMapUv;\n#endif\n#ifdef USE_THICKNESSMAP\n\tuniform mat3 thicknessMapTransform;\n\tvarying vec2 vThicknessMapUv;\n#endif";
+	var uv_pars_vertex = "#if defined( USE_UV ) || defined( USE_ANISOTROPY )\n\tvarying vec2 vUv;\n#endif\n#ifdef USE_MAP\n\tuniform mat3 mapTransform;\n\tvarying vec2 vMapUv;\n#endif\n#ifdef USE_ALPHAMAP\n\tuniform mat3 alphaMapTransform;\n\tvarying vec2 vAlphaMapUv;\n#endif\n#ifdef USE_LIGHTMAP\n\tuniform mat3 lightMapTransform;\n\tvarying vec2 vLightMapUv;\n#endif\n#ifdef USE_AOMAP\n\tuniform mat3 aoMapTransform;\n\tvarying vec2 vAoMapUv;\n#endif\n#ifdef USE_BUMPMAP\n\tuniform mat3 bumpMapTransform;\n\tvarying vec2 vBumpMapUv;\n#endif\n#ifdef USE_NORMALMAP\n\tuniform mat3 normalMapTransform;\n\tvarying vec2 vNormalMapUv;\n#endif\n#ifdef USE_DISPLACEMENTMAP\n\tuniform mat3 displacementMapTransform;\n\tvarying vec2 vDisplacementMapUv;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tuniform mat3 emissiveMapTransform;\n\tvarying vec2 vEmissiveMapUv;\n#endif\n#ifdef USE_METALNESSMAP\n\tuniform mat3 metalnessMapTransform;\n\tvarying vec2 vMetalnessMapUv;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tuniform mat3 roughnessMapTransform;\n\tvarying vec2 vRoughnessMapUv;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tuniform mat3 anisotropyMapTransform;\n\tvarying vec2 vAnisotropyMapUv;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tuniform mat3 clearcoatMapTransform;\n\tvarying vec2 vClearcoatMapUv;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tuniform mat3 clearcoatNormalMapTransform;\n\tvarying vec2 vClearcoatNormalMapUv;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tuniform mat3 clearcoatRoughnessMapTransform;\n\tvarying vec2 vClearcoatRoughnessMapUv;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tuniform mat3 sheenColorMapTransform;\n\tvarying vec2 vSheenColorMapUv;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tuniform mat3 sheenRoughnessMapTransform;\n\tvarying vec2 vSheenRoughnessMapUv;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tuniform mat3 iridescenceMapTransform;\n\tvarying vec2 vIridescenceMapUv;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tuniform mat3 iridescenceThicknessMapTransform;\n\tvarying vec2 vIridescenceThicknessMapUv;\n#endif\n#ifdef USE_SPECULARMAP\n\tuniform mat3 specularMapTransform;\n\tvarying vec2 vSpecularMapUv;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tuniform mat3 specularColorMapTransform;\n\tvarying vec2 vSpecularColorMapUv;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tuniform mat3 specularIntensityMapTransform;\n\tvarying vec2 vSpecularIntensityMapUv;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tuniform mat3 transmissionMapTransform;\n\tvarying vec2 vTransmissionMapUv;\n#endif\n#ifdef USE_THICKNESSMAP\n\tuniform mat3 thicknessMapTransform;\n\tvarying vec2 vThicknessMapUv;\n#endif";
 
-	var uv_vertex = "#ifdef USE_UV\n\tvUv = vec3( uv, 1 ).xy;\n#endif\n#ifdef USE_MAP\n\tvMapUv = ( mapTransform * vec3( MAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ALPHAMAP\n\tvAlphaMapUv = ( alphaMapTransform * vec3( ALPHAMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_LIGHTMAP\n\tvLightMapUv = ( lightMapTransform * vec3( LIGHTMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_AOMAP\n\tvAoMapUv = ( aoMapTransform * vec3( AOMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_BUMPMAP\n\tvBumpMapUv = ( bumpMapTransform * vec3( BUMPMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_NORMALMAP\n\tvNormalMapUv = ( normalMapTransform * vec3( NORMALMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_DISPLACEMENTMAP\n\tvDisplacementMapUv = ( displacementMapTransform * vec3( DISPLACEMENTMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tvEmissiveMapUv = ( emissiveMapTransform * vec3( EMISSIVEMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_METALNESSMAP\n\tvMetalnessMapUv = ( metalnessMapTransform * vec3( METALNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tvRoughnessMapUv = ( roughnessMapTransform * vec3( ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tvAnisotropyMapUv = ( anisotropyMapTransform * vec3( ANISOTROPYMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tvClearcoatMapUv = ( clearcoatMapTransform * vec3( CLEARCOATMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tvClearcoatNormalMapUv = ( clearcoatNormalMapTransform * vec3( CLEARCOAT_NORMALMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tvClearcoatRoughnessMapUv = ( clearcoatRoughnessMapTransform * vec3( CLEARCOAT_ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tvIridescenceMapUv = ( iridescenceMapTransform * vec3( IRIDESCENCEMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tvIridescenceThicknessMapUv = ( iridescenceThicknessMapTransform * vec3( IRIDESCENCE_THICKNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tvSheenColorMapUv = ( sheenColorMapTransform * vec3( SHEEN_COLORMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tvSheenRoughnessMapUv = ( sheenRoughnessMapTransform * vec3( SHEEN_ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULARMAP\n\tvSpecularMapUv = ( specularMapTransform * vec3( SPECULARMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tvSpecularColorMapUv = ( specularColorMapTransform * vec3( SPECULAR_COLORMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tvSpecularIntensityMapUv = ( specularIntensityMapTransform * vec3( SPECULAR_INTENSITYMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tvTransmissionMapUv = ( transmissionMapTransform * vec3( TRANSMISSIONMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_THICKNESSMAP\n\tvThicknessMapUv = ( thicknessMapTransform * vec3( THICKNESSMAP_UV, 1 ) ).xy;\n#endif";
+	var uv_vertex = "#if defined( USE_UV ) || defined( USE_ANISOTROPY )\n\tvUv = vec3( uv, 1 ).xy;\n#endif\n#ifdef USE_MAP\n\tvMapUv = ( mapTransform * vec3( MAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ALPHAMAP\n\tvAlphaMapUv = ( alphaMapTransform * vec3( ALPHAMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_LIGHTMAP\n\tvLightMapUv = ( lightMapTransform * vec3( LIGHTMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_AOMAP\n\tvAoMapUv = ( aoMapTransform * vec3( AOMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_BUMPMAP\n\tvBumpMapUv = ( bumpMapTransform * vec3( BUMPMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_NORMALMAP\n\tvNormalMapUv = ( normalMapTransform * vec3( NORMALMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_DISPLACEMENTMAP\n\tvDisplacementMapUv = ( displacementMapTransform * vec3( DISPLACEMENTMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_EMISSIVEMAP\n\tvEmissiveMapUv = ( emissiveMapTransform * vec3( EMISSIVEMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_METALNESSMAP\n\tvMetalnessMapUv = ( metalnessMapTransform * vec3( METALNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ROUGHNESSMAP\n\tvRoughnessMapUv = ( roughnessMapTransform * vec3( ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_ANISOTROPYMAP\n\tvAnisotropyMapUv = ( anisotropyMapTransform * vec3( ANISOTROPYMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOATMAP\n\tvClearcoatMapUv = ( clearcoatMapTransform * vec3( CLEARCOATMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOAT_NORMALMAP\n\tvClearcoatNormalMapUv = ( clearcoatNormalMapTransform * vec3( CLEARCOAT_NORMALMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_CLEARCOAT_ROUGHNESSMAP\n\tvClearcoatRoughnessMapUv = ( clearcoatRoughnessMapTransform * vec3( CLEARCOAT_ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_IRIDESCENCEMAP\n\tvIridescenceMapUv = ( iridescenceMapTransform * vec3( IRIDESCENCEMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_IRIDESCENCE_THICKNESSMAP\n\tvIridescenceThicknessMapUv = ( iridescenceThicknessMapTransform * vec3( IRIDESCENCE_THICKNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SHEEN_COLORMAP\n\tvSheenColorMapUv = ( sheenColorMapTransform * vec3( SHEEN_COLORMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SHEEN_ROUGHNESSMAP\n\tvSheenRoughnessMapUv = ( sheenRoughnessMapTransform * vec3( SHEEN_ROUGHNESSMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULARMAP\n\tvSpecularMapUv = ( specularMapTransform * vec3( SPECULARMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULAR_COLORMAP\n\tvSpecularColorMapUv = ( specularColorMapTransform * vec3( SPECULAR_COLORMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_SPECULAR_INTENSITYMAP\n\tvSpecularIntensityMapUv = ( specularIntensityMapTransform * vec3( SPECULAR_INTENSITYMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_TRANSMISSIONMAP\n\tvTransmissionMapUv = ( transmissionMapTransform * vec3( TRANSMISSIONMAP_UV, 1 ) ).xy;\n#endif\n#ifdef USE_THICKNESSMAP\n\tvThicknessMapUv = ( thicknessMapTransform * vec3( THICKNESSMAP_UV, 1 ) ).xy;\n#endif";
 
 	var worldpos_vertex = "#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined ( USE_SHADOWMAP ) || defined ( USE_TRANSMISSION ) || NUM_SPOT_LIGHT_COORDS > 0\n\tvec4 worldPosition = vec4( transformed, 1.0 );\n\t#ifdef USE_INSTANCING\n\t\tworldPosition = instanceMatrix * worldPosition;\n\t#endif\n\tworldPosition = modelMatrix * worldPosition;\n#endif";
 
 	const vertex$h = "varying vec2 vUv;\nuniform mat3 uvTransform;\nvoid main() {\n\tvUv = ( uvTransform * vec3( uv, 1 ) ).xy;\n\tgl_Position = vec4( position.xy, 1.0, 1.0 );\n}";
 
-	const fragment$h = "uniform sampler2D t2D;\nuniform float backgroundIntensity;\nvarying vec2 vUv;\nvoid main() {\n\tvec4 texColor = texture2D( t2D, vUv );\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n}";
+	const fragment$h = "uniform sampler2D t2D;\nuniform float backgroundIntensity;\nvarying vec2 vUv;\nvoid main() {\n\tvec4 texColor = texture2D( t2D, vUv );\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
 
 	const vertex$g = "varying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvWorldDirection = transformDirection( position, modelMatrix );\n\t#include <begin_vertex>\n\t#include <project_vertex>\n\tgl_Position.z = gl_Position.w;\n}";
 
-	const fragment$g = "#ifdef ENVMAP_TYPE_CUBE\n\tuniform samplerCube envMap;\n#elif defined( ENVMAP_TYPE_CUBE_UV )\n\tuniform sampler2D envMap;\n#endif\nuniform float flipEnvMap;\nuniform float backgroundBlurriness;\nuniform float backgroundIntensity;\nvarying vec3 vWorldDirection;\n#include <cube_uv_reflection_fragment>\nvoid main() {\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 texColor = textureCube( envMap, vec3( flipEnvMap * vWorldDirection.x, vWorldDirection.yz ) );\n\t#elif defined( ENVMAP_TYPE_CUBE_UV )\n\t\tvec4 texColor = textureCubeUV( envMap, vWorldDirection, backgroundBlurriness );\n\t#else\n\t\tvec4 texColor = vec4( 0.0, 0.0, 0.0, 1.0 );\n\t#endif\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n}";
+	const fragment$g = "#ifdef ENVMAP_TYPE_CUBE\n\tuniform samplerCube envMap;\n#elif defined( ENVMAP_TYPE_CUBE_UV )\n\tuniform sampler2D envMap;\n#endif\nuniform float flipEnvMap;\nuniform float backgroundBlurriness;\nuniform float backgroundIntensity;\nvarying vec3 vWorldDirection;\n#include <cube_uv_reflection_fragment>\nvoid main() {\n\t#ifdef ENVMAP_TYPE_CUBE\n\t\tvec4 texColor = textureCube( envMap, vec3( flipEnvMap * vWorldDirection.x, vWorldDirection.yz ) );\n\t#elif defined( ENVMAP_TYPE_CUBE_UV )\n\t\tvec4 texColor = textureCubeUV( envMap, vWorldDirection, backgroundBlurriness );\n\t#else\n\t\tvec4 texColor = vec4( 0.0, 0.0, 0.0, 1.0 );\n\t#endif\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
 
 	const vertex$f = "varying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvWorldDirection = transformDirection( position, modelMatrix );\n\t#include <begin_vertex>\n\t#include <project_vertex>\n\tgl_Position.z = gl_Position.w;\n}";
 
-	const fragment$f = "uniform samplerCube tCube;\nuniform float tFlip;\nuniform float opacity;\nvarying vec3 vWorldDirection;\nvoid main() {\n\tvec4 texColor = textureCube( tCube, vec3( tFlip * vWorldDirection.x, vWorldDirection.yz ) );\n\tgl_FragColor = texColor;\n\tgl_FragColor.a *= opacity;\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n}";
+	const fragment$f = "uniform samplerCube tCube;\nuniform float tFlip;\nuniform float opacity;\nvarying vec3 vWorldDirection;\nvoid main() {\n\tvec4 texColor = textureCube( tCube, vec3( tFlip * vWorldDirection.x, vWorldDirection.yz ) );\n\tgl_FragColor = texColor;\n\tgl_FragColor.a *= opacity;\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
 
 	const vertex$e = "#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvarying vec2 vHighPrecisionZW;\nvoid main() {\n\t#include <uv_vertex>\n\t#include <skinbase_vertex>\n\t#ifdef USE_DISPLACEMENTMAP\n\t\t#include <beginnormal_vertex>\n\t\t#include <morphnormal_vertex>\n\t\t#include <skinnormal_vertex>\n\t#endif\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\tvHighPrecisionZW = gl_Position.zw;\n}";
 
-	const fragment$e = "#if DEPTH_PACKING == 3200\n\tuniform float opacity;\n#endif\n#include <common>\n#include <packing>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvarying vec2 vHighPrecisionZW;\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( 1.0 );\n\t#if DEPTH_PACKING == 3200\n\t\tdiffuseColor.a = opacity;\n\t#endif\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <logdepthbuf_fragment>\n\tfloat fragCoordZ = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;\n\t#if DEPTH_PACKING == 3200\n\t\tgl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );\n\t#elif DEPTH_PACKING == 3201\n\t\tgl_FragColor = packDepthToRGBA( fragCoordZ );\n\t#endif\n}";
+	const fragment$e = "#if DEPTH_PACKING == 3200\n\tuniform float opacity;\n#endif\n#include <common>\n#include <packing>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvarying vec2 vHighPrecisionZW;\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( 1.0 );\n\t#if DEPTH_PACKING == 3200\n\t\tdiffuseColor.a = opacity;\n\t#endif\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <logdepthbuf_fragment>\n\tfloat fragCoordZ = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;\n\t#if DEPTH_PACKING == 3200\n\t\tgl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );\n\t#elif DEPTH_PACKING == 3201\n\t\tgl_FragColor = packDepthToRGBA( fragCoordZ );\n\t#endif\n}";
 
 	const vertex$d = "#define DISTANCE\nvarying vec3 vWorldPosition;\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <skinbase_vertex>\n\t#ifdef USE_DISPLACEMENTMAP\n\t\t#include <beginnormal_vertex>\n\t\t#include <morphnormal_vertex>\n\t\t#include <skinnormal_vertex>\n\t#endif\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <worldpos_vertex>\n\t#include <clipping_planes_vertex>\n\tvWorldPosition = worldPosition.xyz;\n}";
 
-	const fragment$d = "#define DISTANCE\nuniform vec3 referencePosition;\nuniform float nearDistance;\nuniform float farDistance;\nvarying vec3 vWorldPosition;\n#include <common>\n#include <packing>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main () {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( 1.0 );\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\tfloat dist = length( vWorldPosition - referencePosition );\n\tdist = ( dist - nearDistance ) / ( farDistance - nearDistance );\n\tdist = saturate( dist );\n\tgl_FragColor = packDepthToRGBA( dist );\n}";
+	const fragment$d = "#define DISTANCE\nuniform vec3 referencePosition;\nuniform float nearDistance;\nuniform float farDistance;\nvarying vec3 vWorldPosition;\n#include <common>\n#include <packing>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main () {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( 1.0 );\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\tfloat dist = length( vWorldPosition - referencePosition );\n\tdist = ( dist - nearDistance ) / ( farDistance - nearDistance );\n\tdist = saturate( dist );\n\tgl_FragColor = packDepthToRGBA( dist );\n}";
 
 	const vertex$c = "varying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvWorldDirection = transformDirection( position, modelMatrix );\n\t#include <begin_vertex>\n\t#include <project_vertex>\n}";
 
-	const fragment$c = "uniform sampler2D tEquirect;\nvarying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvec3 direction = normalize( vWorldDirection );\n\tvec2 sampleUV = equirectUv( direction );\n\tgl_FragColor = texture2D( tEquirect, sampleUV );\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n}";
+	const fragment$c = "uniform sampler2D tEquirect;\nvarying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvec3 direction = normalize( vWorldDirection );\n\tvec2 sampleUV = equirectUv( direction );\n\tgl_FragColor = texture2D( tEquirect, sampleUV );\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
 
 	const vertex$b = "uniform float scale;\nattribute float lineDistance;\nvarying float vLineDistance;\n#include <common>\n#include <uv_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\tvLineDistance = scale * lineDistance;\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$b = "uniform vec3 diffuse;\nuniform float opacity;\nuniform float dashSize;\nuniform float totalSize;\nvarying float vLineDistance;\n#include <common>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tif ( mod( vLineDistance, totalSize ) > dashSize ) {\n\t\tdiscard;\n\t}\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n}";
+	const fragment$b = "uniform vec3 diffuse;\nuniform float opacity;\nuniform float dashSize;\nuniform float totalSize;\nvarying float vLineDistance;\n#include <common>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tif ( mod( vLineDistance, totalSize ) > dashSize ) {\n\t\tdiscard;\n\t}\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n}";
 
 	const vertex$a = "#include <common>\n#include <uv_pars_vertex>\n#include <envmap_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#if defined ( USE_ENVMAP ) || defined ( USE_SKINNING )\n\t\t#include <beginnormal_vertex>\n\t\t#include <morphnormal_vertex>\n\t\t#include <skinbase_vertex>\n\t\t#include <skinnormal_vertex>\n\t\t#include <defaultnormal_vertex>\n\t#endif\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\t#include <worldpos_vertex>\n\t#include <envmap_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$a = "uniform vec3 diffuse;\nuniform float opacity;\n#ifndef FLAT_SHADED\n\tvarying vec3 vNormal;\n#endif\n#include <common>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <specularmap_fragment>\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\t#ifdef USE_LIGHTMAP\n\t\tvec4 lightMapTexel = texture2D( lightMap, vLightMapUv );\n\t\treflectedLight.indirectDiffuse += lightMapTexel.rgb * lightMapIntensity * RECIPROCAL_PI;\n\t#else\n\t\treflectedLight.indirectDiffuse += vec3( 1.0 );\n\t#endif\n\t#include <aomap_fragment>\n\treflectedLight.indirectDiffuse *= diffuseColor.rgb;\n\tvec3 outgoingLight = reflectedLight.indirectDiffuse;\n\t#include <envmap_fragment>\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$a = "uniform vec3 diffuse;\nuniform float opacity;\n#ifndef FLAT_SHADED\n\tvarying vec3 vNormal;\n#endif\n#include <common>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <specularmap_fragment>\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\t#ifdef USE_LIGHTMAP\n\t\tvec4 lightMapTexel = texture2D( lightMap, vLightMapUv );\n\t\treflectedLight.indirectDiffuse += lightMapTexel.rgb * lightMapIntensity * RECIPROCAL_PI;\n\t#else\n\t\treflectedLight.indirectDiffuse += vec3( 1.0 );\n\t#endif\n\t#include <aomap_fragment>\n\treflectedLight.indirectDiffuse *= diffuseColor.rgb;\n\tvec3 outgoingLight = reflectedLight.indirectDiffuse;\n\t#include <envmap_fragment>\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$9 = "#define LAMBERT\nvarying vec3 vViewPosition;\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <envmap_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <shadowmap_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\tvViewPosition = - mvPosition.xyz;\n\t#include <worldpos_vertex>\n\t#include <envmap_vertex>\n\t#include <shadowmap_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$9 = "#define LAMBERT\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_lambert_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <specularmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_lambert_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;\n\t#include <envmap_fragment>\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$9 = "#define LAMBERT\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_lambert_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <specularmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_lambert_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;\n\t#include <envmap_fragment>\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$8 = "#define MATCAP\nvarying vec3 vViewPosition;\n#include <common>\n#include <uv_pars_vertex>\n#include <color_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <fog_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\t#include <fog_vertex>\n\tvViewPosition = - mvPosition.xyz;\n}";
 
-	const fragment$8 = "#define MATCAP\nuniform vec3 diffuse;\nuniform float opacity;\nuniform sampler2D matcap;\nvarying vec3 vViewPosition;\n#include <common>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <fog_pars_fragment>\n#include <normal_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\tvec3 viewDir = normalize( vViewPosition );\n\tvec3 x = normalize( vec3( viewDir.z, 0.0, - viewDir.x ) );\n\tvec3 y = cross( viewDir, x );\n\tvec2 uv = vec2( dot( x, normal ), dot( y, normal ) ) * 0.495 + 0.5;\n\t#ifdef USE_MATCAP\n\t\tvec4 matcapColor = texture2D( matcap, uv );\n\t#else\n\t\tvec4 matcapColor = vec4( vec3( mix( 0.2, 0.8, uv.y ) ), 1.0 );\n\t#endif\n\tvec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$8 = "#define MATCAP\nuniform vec3 diffuse;\nuniform float opacity;\nuniform sampler2D matcap;\nvarying vec3 vViewPosition;\n#include <common>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <fog_pars_fragment>\n#include <normal_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\tvec3 viewDir = normalize( vViewPosition );\n\tvec3 x = normalize( vec3( viewDir.z, 0.0, - viewDir.x ) );\n\tvec3 y = cross( viewDir, x );\n\tvec2 uv = vec2( dot( x, normal ), dot( y, normal ) ) * 0.495 + 0.5;\n\t#ifdef USE_MATCAP\n\t\tvec4 matcapColor = texture2D( matcap, uv );\n\t#else\n\t\tvec4 matcapColor = vec4( vec3( mix( 0.2, 0.8, uv.y ) ), 1.0 );\n\t#endif\n\tvec3 outgoingLight = diffuseColor.rgb * matcapColor.rgb;\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$7 = "#define NORMAL\n#if defined( FLAT_SHADED ) || defined( USE_BUMPMAP ) || defined( USE_NORMALMAP_TANGENTSPACE )\n\tvarying vec3 vViewPosition;\n#endif\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n#if defined( FLAT_SHADED ) || defined( USE_BUMPMAP ) || defined( USE_NORMALMAP_TANGENTSPACE )\n\tvViewPosition = - mvPosition.xyz;\n#endif\n}";
 
@@ -17460,29 +15105,31 @@ var app = (function (child_process) {
 
 	const vertex$6 = "#define PHONG\nvarying vec3 vViewPosition;\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <envmap_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <shadowmap_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\tvViewPosition = - mvPosition.xyz;\n\t#include <worldpos_vertex>\n\t#include <envmap_vertex>\n\t#include <shadowmap_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$6 = "#define PHONG\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform vec3 specular;\nuniform float shininess;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_phong_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <specularmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_phong_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular + totalEmissiveRadiance;\n\t#include <envmap_fragment>\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$6 = "#define PHONG\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform vec3 specular;\nuniform float shininess;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_phong_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <specularmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <specularmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_phong_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular + totalEmissiveRadiance;\n\t#include <envmap_fragment>\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$5 = "#define STANDARD\nvarying vec3 vViewPosition;\n#ifdef USE_TRANSMISSION\n\tvarying vec3 vWorldPosition;\n#endif\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <shadowmap_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\tvViewPosition = - mvPosition.xyz;\n\t#include <worldpos_vertex>\n\t#include <shadowmap_vertex>\n\t#include <fog_vertex>\n#ifdef USE_TRANSMISSION\n\tvWorldPosition = worldPosition.xyz;\n#endif\n}";
 
-	const fragment$5 = "#define STANDARD\n#ifdef PHYSICAL\n\t#define IOR\n\t#define USE_SPECULAR\n#endif\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float roughness;\nuniform float metalness;\nuniform float opacity;\n#ifdef IOR\n\tuniform float ior;\n#endif\n#ifdef USE_SPECULAR\n\tuniform float specularIntensity;\n\tuniform vec3 specularColor;\n\t#ifdef USE_SPECULAR_COLORMAP\n\t\tuniform sampler2D specularColorMap;\n\t#endif\n\t#ifdef USE_SPECULAR_INTENSITYMAP\n\t\tuniform sampler2D specularIntensityMap;\n\t#endif\n#endif\n#ifdef USE_CLEARCOAT\n\tuniform float clearcoat;\n\tuniform float clearcoatRoughness;\n#endif\n#ifdef USE_IRIDESCENCE\n\tuniform float iridescence;\n\tuniform float iridescenceIOR;\n\tuniform float iridescenceThicknessMinimum;\n\tuniform float iridescenceThicknessMaximum;\n#endif\n#ifdef USE_SHEEN\n\tuniform vec3 sheenColor;\n\tuniform float sheenRoughness;\n\t#ifdef USE_SHEEN_COLORMAP\n\t\tuniform sampler2D sheenColorMap;\n\t#endif\n\t#ifdef USE_SHEEN_ROUGHNESSMAP\n\t\tuniform sampler2D sheenRoughnessMap;\n\t#endif\n#endif\n#ifdef USE_ANISOTROPY\n\tuniform vec2 anisotropyVector;\n\t#ifdef USE_ANISOTROPYMAP\n\t\tuniform sampler2D anisotropyMap;\n\t#endif\n#endif\nvarying vec3 vViewPosition;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <iridescence_fragment>\n#include <cube_uv_reflection_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_physical_pars_fragment>\n#include <fog_pars_fragment>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_physical_pars_fragment>\n#include <transmission_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <clearcoat_pars_fragment>\n#include <iridescence_pars_fragment>\n#include <roughnessmap_pars_fragment>\n#include <metalnessmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <roughnessmap_fragment>\n\t#include <metalnessmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <clearcoat_normal_fragment_begin>\n\t#include <clearcoat_normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_physical_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;\n\tvec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;\n\t#include <transmission_fragment>\n\tvec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;\n\t#ifdef USE_SHEEN\n\t\tfloat sheenEnergyComp = 1.0 - 0.157 * max3( material.sheenColor );\n\t\toutgoingLight = outgoingLight * sheenEnergyComp + sheenSpecular;\n\t#endif\n\t#ifdef USE_CLEARCOAT\n\t\tfloat dotNVcc = saturate( dot( geometry.clearcoatNormal, geometry.viewDir ) );\n\t\tvec3 Fcc = F_Schlick( material.clearcoatF0, material.clearcoatF90, dotNVcc );\n\t\toutgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + clearcoatSpecular * material.clearcoat;\n\t#endif\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$5 = "#define STANDARD\n#ifdef PHYSICAL\n\t#define IOR\n\t#define USE_SPECULAR\n#endif\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float roughness;\nuniform float metalness;\nuniform float opacity;\n#ifdef IOR\n\tuniform float ior;\n#endif\n#ifdef USE_SPECULAR\n\tuniform float specularIntensity;\n\tuniform vec3 specularColor;\n\t#ifdef USE_SPECULAR_COLORMAP\n\t\tuniform sampler2D specularColorMap;\n\t#endif\n\t#ifdef USE_SPECULAR_INTENSITYMAP\n\t\tuniform sampler2D specularIntensityMap;\n\t#endif\n#endif\n#ifdef USE_CLEARCOAT\n\tuniform float clearcoat;\n\tuniform float clearcoatRoughness;\n#endif\n#ifdef USE_IRIDESCENCE\n\tuniform float iridescence;\n\tuniform float iridescenceIOR;\n\tuniform float iridescenceThicknessMinimum;\n\tuniform float iridescenceThicknessMaximum;\n#endif\n#ifdef USE_SHEEN\n\tuniform vec3 sheenColor;\n\tuniform float sheenRoughness;\n\t#ifdef USE_SHEEN_COLORMAP\n\t\tuniform sampler2D sheenColorMap;\n\t#endif\n\t#ifdef USE_SHEEN_ROUGHNESSMAP\n\t\tuniform sampler2D sheenRoughnessMap;\n\t#endif\n#endif\n#ifdef USE_ANISOTROPY\n\tuniform vec2 anisotropyVector;\n\t#ifdef USE_ANISOTROPYMAP\n\t\tuniform sampler2D anisotropyMap;\n\t#endif\n#endif\nvarying vec3 vViewPosition;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <iridescence_fragment>\n#include <cube_uv_reflection_fragment>\n#include <envmap_common_pars_fragment>\n#include <envmap_physical_pars_fragment>\n#include <fog_pars_fragment>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_physical_pars_fragment>\n#include <transmission_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <clearcoat_pars_fragment>\n#include <iridescence_pars_fragment>\n#include <roughnessmap_pars_fragment>\n#include <metalnessmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <roughnessmap_fragment>\n\t#include <metalnessmap_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <clearcoat_normal_fragment_begin>\n\t#include <clearcoat_normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_physical_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 totalDiffuse = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse;\n\tvec3 totalSpecular = reflectedLight.directSpecular + reflectedLight.indirectSpecular;\n\t#include <transmission_fragment>\n\tvec3 outgoingLight = totalDiffuse + totalSpecular + totalEmissiveRadiance;\n\t#ifdef USE_SHEEN\n\t\tfloat sheenEnergyComp = 1.0 - 0.157 * max3( material.sheenColor );\n\t\toutgoingLight = outgoingLight * sheenEnergyComp + sheenSpecular;\n\t#endif\n\t#ifdef USE_CLEARCOAT\n\t\tfloat dotNVcc = saturate( dot( geometry.clearcoatNormal, geometry.viewDir ) );\n\t\tvec3 Fcc = F_Schlick( material.clearcoatF0, material.clearcoatF90, dotNVcc );\n\t\toutgoingLight = outgoingLight * ( 1.0 - material.clearcoat * Fcc ) + clearcoatSpecular * material.clearcoat;\n\t#endif\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$4 = "#define TOON\nvarying vec3 vViewPosition;\n#include <common>\n#include <uv_pars_vertex>\n#include <displacementmap_pars_vertex>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <normal_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <shadowmap_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <normal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <displacementmap_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\tvViewPosition = - mvPosition.xyz;\n\t#include <worldpos_vertex>\n\t#include <shadowmap_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$4 = "#define TOON\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <gradientmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_toon_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_toon_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
+	const fragment$4 = "#define TOON\nuniform vec3 diffuse;\nuniform vec3 emissive;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <dithering_pars_fragment>\n#include <color_pars_fragment>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <aomap_pars_fragment>\n#include <lightmap_pars_fragment>\n#include <emissivemap_pars_fragment>\n#include <gradientmap_pars_fragment>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <normal_pars_fragment>\n#include <lights_toon_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <bumpmap_pars_fragment>\n#include <normalmap_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\tReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );\n\tvec3 totalEmissiveRadiance = emissive;\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <color_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\t#include <normal_fragment_begin>\n\t#include <normal_fragment_maps>\n\t#include <emissivemap_fragment>\n\t#include <lights_toon_fragment>\n\t#include <lights_fragment_begin>\n\t#include <lights_fragment_maps>\n\t#include <lights_fragment_end>\n\t#include <aomap_fragment>\n\tvec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n\t#include <dithering_fragment>\n}";
 
 	const vertex$3 = "uniform float size;\nuniform float scale;\n#include <common>\n#include <color_pars_vertex>\n#include <fog_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\n#ifdef USE_POINTS_UV\n\tvarying vec2 vUv;\n\tuniform mat3 uvTransform;\n#endif\nvoid main() {\n\t#ifdef USE_POINTS_UV\n\t\tvUv = ( uvTransform * vec3( uv, 1 ) ).xy;\n\t#endif\n\t#include <color_vertex>\n\t#include <morphcolor_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <project_vertex>\n\tgl_PointSize = size;\n\t#ifdef USE_SIZEATTENUATION\n\t\tbool isPerspective = isPerspectiveMatrix( projectionMatrix );\n\t\tif ( isPerspective ) gl_PointSize *= ( scale / - mvPosition.z );\n\t#endif\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\t#include <worldpos_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$3 = "uniform vec3 diffuse;\nuniform float opacity;\n#include <common>\n#include <color_pars_fragment>\n#include <map_particle_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_particle_fragment>\n\t#include <color_fragment>\n\t#include <alphatest_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n}";
+	const fragment$3 = "uniform vec3 diffuse;\nuniform float opacity;\n#include <common>\n#include <color_pars_fragment>\n#include <map_particle_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_particle_fragment>\n\t#include <color_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n\t#include <premultiplied_alpha_fragment>\n}";
 
 	const vertex$2 = "#include <common>\n#include <fog_pars_vertex>\n#include <morphtarget_pars_vertex>\n#include <skinning_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <shadowmap_pars_vertex>\nvoid main() {\n\t#include <beginnormal_vertex>\n\t#include <morphnormal_vertex>\n\t#include <skinbase_vertex>\n\t#include <skinnormal_vertex>\n\t#include <defaultnormal_vertex>\n\t#include <begin_vertex>\n\t#include <morphtarget_vertex>\n\t#include <skinning_vertex>\n\t#include <project_vertex>\n\t#include <logdepthbuf_vertex>\n\t#include <worldpos_vertex>\n\t#include <shadowmap_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$2 = "uniform vec3 color;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <logdepthbuf_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>\nvoid main() {\n\t#include <logdepthbuf_fragment>\n\tgl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n}";
+	const fragment$2 = "uniform vec3 color;\nuniform float opacity;\n#include <common>\n#include <packing>\n#include <fog_pars_fragment>\n#include <bsdfs>\n#include <lights_pars_begin>\n#include <logdepthbuf_pars_fragment>\n#include <shadowmap_pars_fragment>\n#include <shadowmask_pars_fragment>\nvoid main() {\n\t#include <logdepthbuf_fragment>\n\tgl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) );\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n}";
 
 	const vertex$1 = "uniform float rotation;\nuniform vec2 center;\n#include <common>\n#include <uv_pars_vertex>\n#include <fog_pars_vertex>\n#include <logdepthbuf_pars_vertex>\n#include <clipping_planes_pars_vertex>\nvoid main() {\n\t#include <uv_vertex>\n\tvec4 mvPosition = modelViewMatrix * vec4( 0.0, 0.0, 0.0, 1.0 );\n\tvec2 scale;\n\tscale.x = length( vec3( modelMatrix[ 0 ].x, modelMatrix[ 0 ].y, modelMatrix[ 0 ].z ) );\n\tscale.y = length( vec3( modelMatrix[ 1 ].x, modelMatrix[ 1 ].y, modelMatrix[ 1 ].z ) );\n\t#ifndef USE_SIZEATTENUATION\n\t\tbool isPerspective = isPerspectiveMatrix( projectionMatrix );\n\t\tif ( isPerspective ) scale *= - mvPosition.z;\n\t#endif\n\tvec2 alignedPosition = ( position.xy - ( center - vec2( 0.5 ) ) ) * scale;\n\tvec2 rotatedPosition;\n\trotatedPosition.x = cos( rotation ) * alignedPosition.x - sin( rotation ) * alignedPosition.y;\n\trotatedPosition.y = sin( rotation ) * alignedPosition.x + cos( rotation ) * alignedPosition.y;\n\tmvPosition.xy += rotatedPosition;\n\tgl_Position = projectionMatrix * mvPosition;\n\t#include <logdepthbuf_vertex>\n\t#include <clipping_planes_vertex>\n\t#include <fog_vertex>\n}";
 
-	const fragment$1 = "uniform vec3 diffuse;\nuniform float opacity;\n#include <common>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <output_fragment>\n\t#include <tonemapping_fragment>\n\t#include <encodings_fragment>\n\t#include <fog_fragment>\n}";
+	const fragment$1 = "uniform vec3 diffuse;\nuniform float opacity;\n#include <common>\n#include <uv_pars_fragment>\n#include <map_pars_fragment>\n#include <alphamap_pars_fragment>\n#include <alphatest_pars_fragment>\n#include <alphahash_pars_fragment>\n#include <fog_pars_fragment>\n#include <logdepthbuf_pars_fragment>\n#include <clipping_planes_pars_fragment>\nvoid main() {\n\t#include <clipping_planes_fragment>\n\tvec3 outgoingLight = vec3( 0.0 );\n\tvec4 diffuseColor = vec4( diffuse, opacity );\n\t#include <logdepthbuf_fragment>\n\t#include <map_fragment>\n\t#include <alphamap_fragment>\n\t#include <alphatest_fragment>\n\t#include <alphahash_fragment>\n\toutgoingLight = diffuseColor.rgb;\n\t#include <opaque_fragment>\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n\t#include <fog_fragment>\n}";
 
 	const ShaderChunk = {
+		alphahash_fragment: alphahash_fragment,
+		alphahash_pars_fragment: alphahash_pars_fragment,
 		alphamap_fragment: alphamap_fragment,
 		alphamap_pars_fragment: alphamap_pars_fragment,
 		alphatest_fragment: alphatest_fragment,
@@ -17509,8 +15156,8 @@ var app = (function (child_process) {
 		displacementmap_vertex: displacementmap_vertex,
 		emissivemap_fragment: emissivemap_fragment,
 		emissivemap_pars_fragment: emissivemap_pars_fragment,
-		encodings_fragment: encodings_fragment,
-		encodings_pars_fragment: encodings_pars_fragment,
+		colorspace_fragment: colorspace_fragment,
+		colorspace_pars_fragment: colorspace_pars_fragment,
 		envmap_fragment: envmap_fragment,
 		envmap_common_pars_fragment: envmap_common_pars_fragment,
 		envmap_pars_fragment: envmap_pars_fragment,
@@ -17560,7 +15207,7 @@ var app = (function (child_process) {
 		clearcoat_normal_fragment_maps: clearcoat_normal_fragment_maps,
 		clearcoat_pars_fragment: clearcoat_pars_fragment,
 		iridescence_pars_fragment: iridescence_pars_fragment,
-		output_fragment: output_fragment,
+		opaque_fragment: opaque_fragment,
 		packing: packing,
 		premultiplied_alpha_fragment: premultiplied_alpha_fragment,
 		project_vertex: project_vertex,
@@ -20852,7 +18499,7 @@ var app = (function (child_process) {
 
 				}
 
-			} else {
+			} else if ( geometryPosition !== undefined ) {
 
 				const array = geometryPosition.array;
 				version = geometryPosition.version;
@@ -20866,6 +18513,10 @@ var app = (function (child_process) {
 					indices.push( a, b, b, c, c, a );
 
 				}
+
+			} else {
+
+				return;
 
 			}
 
@@ -21387,11 +19038,31 @@ var app = (function (child_process) {
 
 				}
 
-				attributes.update( object.instanceMatrix, gl.ARRAY_BUFFER );
+				if ( updateMap.get( object ) !== frame ) {
 
-				if ( object.instanceColor !== null ) {
+					attributes.update( object.instanceMatrix, gl.ARRAY_BUFFER );
 
-					attributes.update( object.instanceColor, gl.ARRAY_BUFFER );
+					if ( object.instanceColor !== null ) {
+
+						attributes.update( object.instanceColor, gl.ARRAY_BUFFER );
+
+					}
+
+					updateMap.set( object, frame );
+
+				}
+
+			}
+
+			if ( object.isSkinnedMesh ) {
+
+				const skeleton = object.skeleton;
+
+				if ( updateMap.get( skeleton ) !== frame ) {
+
+					skeleton.update();
+
+					updateMap.set( skeleton, frame );
 
 				}
 
@@ -22788,13 +20459,30 @@ var app = (function (child_process) {
 
 	}
 
+	const shaderChunkMap = new Map( [
+		[ 'encodings_fragment', 'colorspace_fragment' ], // @deprecated, r154
+		[ 'encodings_pars_fragment', 'colorspace_pars_fragment' ], // @deprecated, r154
+		[ 'output_fragment', 'opaque_fragment' ], // @deprecated, r154
+	] );
+
 	function includeReplacer( match, include ) {
 
-		const string = ShaderChunk[ include ];
+		let string = ShaderChunk[ include ];
 
 		if ( string === undefined ) {
 
-			throw new Error( 'Can not resolve #include <' + include + '>' );
+			const newInclude = shaderChunkMap.get( include );
+
+			if ( newInclude !== undefined ) {
+
+				string = ShaderChunk[ newInclude ];
+				console.warn( 'THREE.WebGLRenderer: Shader chunk "%s" has been deprecated. Use "%s" instead.', include, newInclude );
+
+			} else {
+
+				throw new Error( 'Can not resolve #include <' + include + '>' );
+
+			}
 
 		}
 
@@ -23070,6 +20758,7 @@ var app = (function (child_process) {
 				parameters.roughnessMap ? '#define USE_ROUGHNESSMAP' : '',
 				parameters.metalnessMap ? '#define USE_METALNESSMAP' : '',
 				parameters.alphaMap ? '#define USE_ALPHAMAP' : '',
+				parameters.alphaHash ? '#define USE_ALPHAHASH' : '',
 
 				parameters.transmission ? '#define USE_TRANSMISSION' : '',
 				parameters.transmissionMap ? '#define USE_TRANSMISSIONMAP' : '',
@@ -23113,7 +20802,7 @@ var app = (function (child_process) {
 
 				//
 
-				parameters.vertexTangents ? '#define USE_TANGENT' : '',
+				parameters.vertexTangents && parameters.flatShading === false ? '#define USE_TANGENT' : '',
 				parameters.vertexColors ? '#define USE_COLOR' : '',
 				parameters.vertexAlphas ? '#define USE_COLOR_ALPHA' : '',
 				parameters.vertexUv1s ? '#define USE_UV1' : '',
@@ -23291,6 +20980,7 @@ var app = (function (child_process) {
 
 				parameters.alphaMap ? '#define USE_ALPHAMAP' : '',
 				parameters.alphaTest ? '#define USE_ALPHATEST' : '',
+				parameters.alphaHash ? '#define USE_ALPHAHASH' : '',
 
 				parameters.sheen ? '#define USE_SHEEN' : '',
 				parameters.sheenColorMap ? '#define USE_SHEEN_COLORMAP' : '',
@@ -23300,7 +20990,7 @@ var app = (function (child_process) {
 				parameters.transmissionMap ? '#define USE_TRANSMISSIONMAP' : '',
 				parameters.thicknessMap ? '#define USE_THICKNESSMAP' : '',
 
-				parameters.vertexTangents ? '#define USE_TANGENT' : '',
+				parameters.vertexTangents && parameters.flatShading === false ? '#define USE_TANGENT' : '',
 				parameters.vertexColors || parameters.instancingColor ? '#define USE_COLOR' : '',
 				parameters.vertexAlphas ? '#define USE_COLOR_ALPHA' : '',
 				parameters.vertexUv1s ? '#define USE_UV1' : '',
@@ -23337,7 +21027,7 @@ var app = (function (child_process) {
 				parameters.dithering ? '#define DITHERING' : '',
 				parameters.opaque ? '#define OPAQUE' : '',
 
-				ShaderChunk[ 'encodings_pars_fragment' ], // this code is required here because it is used by the various encoding/decoding function defined below
+				ShaderChunk[ 'colorspace_pars_fragment' ], // this code is required here because it is used by the various encoding/decoding function defined below
 				getTexelEncodingFunction( 'linearToOutputTexel', parameters.outputColorSpace ),
 
 				parameters.useDepthPacking ? '#define DEPTH_PACKING ' + parameters.depthPacking : '',
@@ -23827,11 +21517,25 @@ var app = (function (child_process) {
 
 			const HAS_ALPHATEST = material.alphaTest > 0;
 
+			const HAS_ALPHAHASH = !! material.alphaHash;
+
 			const HAS_EXTENSIONS = !! material.extensions;
 
 			const HAS_ATTRIBUTE_UV1 = !! geometry.attributes.uv1;
 			const HAS_ATTRIBUTE_UV2 = !! geometry.attributes.uv2;
 			const HAS_ATTRIBUTE_UV3 = !! geometry.attributes.uv3;
+
+			let toneMapping = NoToneMapping;
+
+			if ( material.toneMapped ) {
+
+				if ( currentRenderTarget === null || currentRenderTarget.isXRRenderTarget === true ) {
+
+					toneMapping = renderer.toneMapping;
+
+				}
+
+			}
 
 			const parameters = {
 
@@ -23907,6 +21611,7 @@ var app = (function (child_process) {
 
 				alphaMap: HAS_ALPHAMAP,
 				alphaTest: HAS_ALPHATEST,
+				alphaHash: HAS_ALPHAHASH,
 
 				combine: material.combine,
 
@@ -23992,8 +21697,8 @@ var app = (function (child_process) {
 				shadowMapEnabled: renderer.shadowMap.enabled && shadows.length > 0,
 				shadowMapType: renderer.shadowMap.type,
 
-				toneMapping: material.toneMapped ? renderer.toneMapping : NoToneMapping,
-				useLegacyLights: renderer.useLegacyLights,
+				toneMapping: toneMapping,
+				useLegacyLights: renderer._useLegacyLights,
 
 				premultipliedAlpha: material.premultipliedAlpha,
 
@@ -27165,6 +24870,17 @@ var app = (function (child_process) {
 
 			}
 
+			if ( glFormat === _gl.RED_INTEGER ) {
+
+				if ( glType === _gl.UNSIGNED_BYTE ) internalFormat = _gl.R8UI;
+				if ( glType === _gl.UNSIGNED_SHORT ) internalFormat = _gl.R16UI;
+				if ( glType === _gl.UNSIGNED_INT ) internalFormat = _gl.R32UI;
+				if ( glType === _gl.BYTE ) internalFormat = _gl.R8I;
+				if ( glType === _gl.SHORT ) internalFormat = _gl.R16I;
+				if ( glType === _gl.INT ) internalFormat = _gl.R32I;
+
+			}
+
 			if ( glFormat === _gl.RG ) {
 
 				if ( glType === _gl.FLOAT ) internalFormat = _gl.RG32F;
@@ -27341,14 +25057,32 @@ var app = (function (child_process) {
 
 				for ( let i = 0; i < 6; i ++ ) {
 
-					_gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer[ i ] );
+					if ( Array.isArray( renderTargetProperties.__webglFramebuffer[ i ] ) ) {
+
+						for ( let level = 0; level < renderTargetProperties.__webglFramebuffer[ i ].length; level ++ ) _gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer[ i ][ level ] );
+
+					} else {
+
+						_gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer[ i ] );
+
+					}
+
 					if ( renderTargetProperties.__webglDepthbuffer ) _gl.deleteRenderbuffer( renderTargetProperties.__webglDepthbuffer[ i ] );
 
 				}
 
 			} else {
 
-				_gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer );
+				if ( Array.isArray( renderTargetProperties.__webglFramebuffer ) ) {
+
+					for ( let level = 0; level < renderTargetProperties.__webglFramebuffer.length; level ++ ) _gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer[ level ] );
+
+				} else {
+
+					_gl.deleteFramebuffer( renderTargetProperties.__webglFramebuffer );
+
+				}
+
 				if ( renderTargetProperties.__webglDepthbuffer ) _gl.deleteRenderbuffer( renderTargetProperties.__webglDepthbuffer );
 				if ( renderTargetProperties.__webglMultisampledFramebuffer ) _gl.deleteFramebuffer( renderTargetProperties.__webglMultisampledFramebuffer );
 
@@ -28323,7 +26057,7 @@ var app = (function (child_process) {
 		// Render targets
 
 		// Setup storage for target texture and bind it to correct framebuffer
-		function setupFrameBufferTexture( framebuffer, renderTarget, texture, attachment, textureTarget ) {
+		function setupFrameBufferTexture( framebuffer, renderTarget, texture, attachment, textureTarget, level ) {
 
 			const glFormat = utils.convert( texture.format, texture.colorSpace );
 			const glType = utils.convert( texture.type );
@@ -28332,13 +26066,16 @@ var app = (function (child_process) {
 
 			if ( ! renderTargetProperties.__hasExternalTextures ) {
 
+				const width = Math.max( 1, renderTarget.width >> level );
+				const height = Math.max( 1, renderTarget.height >> level );
+
 				if ( textureTarget === _gl.TEXTURE_3D || textureTarget === _gl.TEXTURE_2D_ARRAY ) {
 
-					state.texImage3D( textureTarget, 0, glInternalFormat, renderTarget.width, renderTarget.height, renderTarget.depth, 0, glFormat, glType, null );
+					state.texImage3D( textureTarget, level, glInternalFormat, width, height, renderTarget.depth, 0, glFormat, glType, null );
 
 				} else {
 
-					state.texImage2D( textureTarget, 0, glInternalFormat, renderTarget.width, renderTarget.height, 0, glFormat, glType, null );
+					state.texImage2D( textureTarget, level, glInternalFormat, width, height, 0, glFormat, glType, null );
 
 				}
 
@@ -28352,7 +26089,7 @@ var app = (function (child_process) {
 
 			} else if ( textureTarget === _gl.TEXTURE_2D || ( textureTarget >= _gl.TEXTURE_CUBE_MAP_POSITIVE_X && textureTarget <= _gl.TEXTURE_CUBE_MAP_NEGATIVE_Z ) ) { // see #24753
 
-				_gl.framebufferTexture2D( _gl.FRAMEBUFFER, attachment, textureTarget, properties.get( texture ).__webglTexture, 0 );
+				_gl.framebufferTexture2D( _gl.FRAMEBUFFER, attachment, textureTarget, properties.get( texture ).__webglTexture, level );
 
 			}
 
@@ -28573,7 +26310,7 @@ var app = (function (child_process) {
 
 			if ( colorTexture !== undefined ) {
 
-				setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, renderTarget.texture, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_2D );
+				setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, renderTarget.texture, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_2D, 0 );
 
 			}
 
@@ -28620,13 +26357,41 @@ var app = (function (child_process) {
 
 				for ( let i = 0; i < 6; i ++ ) {
 
-					renderTargetProperties.__webglFramebuffer[ i ] = _gl.createFramebuffer();
+					if ( isWebGL2 && texture.mipmaps && texture.mipmaps.length > 0 ) {
+
+						renderTargetProperties.__webglFramebuffer[ i ] = [];
+
+						for ( let level = 0; level < texture.mipmaps.length; level ++ ) {
+
+							renderTargetProperties.__webglFramebuffer[ i ][ level ] = _gl.createFramebuffer();
+
+						}
+
+					} else {
+
+						renderTargetProperties.__webglFramebuffer[ i ] = _gl.createFramebuffer();
+
+					}
 
 				}
 
 			} else {
 
-				renderTargetProperties.__webglFramebuffer = _gl.createFramebuffer();
+				if ( isWebGL2 && texture.mipmaps && texture.mipmaps.length > 0 ) {
+
+					renderTargetProperties.__webglFramebuffer = [];
+
+					for ( let level = 0; level < texture.mipmaps.length; level ++ ) {
+
+						renderTargetProperties.__webglFramebuffer[ level ] = _gl.createFramebuffer();
+
+					}
+
+				} else {
+
+					renderTargetProperties.__webglFramebuffer = _gl.createFramebuffer();
+
+				}
 
 				if ( isMultipleRenderTargets ) {
 
@@ -28706,7 +26471,19 @@ var app = (function (child_process) {
 
 				for ( let i = 0; i < 6; i ++ ) {
 
-					setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer[ i ], renderTarget, texture, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_CUBE_MAP_POSITIVE_X + i );
+					if ( isWebGL2 && texture.mipmaps && texture.mipmaps.length > 0 ) {
+
+						for ( let level = 0; level < texture.mipmaps.length; level ++ ) {
+
+							setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer[ i ][ level ], renderTarget, texture, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, level );
+
+						}
+
+					} else {
+
+						setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer[ i ], renderTarget, texture, _gl.COLOR_ATTACHMENT0, _gl.TEXTURE_CUBE_MAP_POSITIVE_X + i, 0 );
+
+					}
 
 				}
 
@@ -28729,7 +26506,7 @@ var app = (function (child_process) {
 
 					state.bindTexture( _gl.TEXTURE_2D, attachmentProperties.__webglTexture );
 					setTextureParameters( _gl.TEXTURE_2D, attachment, supportsMips );
-					setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, attachment, _gl.COLOR_ATTACHMENT0 + i, _gl.TEXTURE_2D );
+					setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, attachment, _gl.COLOR_ATTACHMENT0 + i, _gl.TEXTURE_2D, 0 );
 
 					if ( textureNeedsGenerateMipmaps( attachment, supportsMips ) ) {
 
@@ -28761,7 +26538,20 @@ var app = (function (child_process) {
 
 				state.bindTexture( glTextureType, textureProperties.__webglTexture );
 				setTextureParameters( glTextureType, texture, supportsMips );
-				setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, texture, _gl.COLOR_ATTACHMENT0, glTextureType );
+
+				if ( isWebGL2 && texture.mipmaps && texture.mipmaps.length > 0 ) {
+
+					for ( let level = 0; level < texture.mipmaps.length; level ++ ) {
+
+						setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer[ level ], renderTarget, texture, _gl.COLOR_ATTACHMENT0, glTextureType, level );
+
+					}
+
+				} else {
+
+					setupFrameBufferTexture( renderTargetProperties.__webglFramebuffer, renderTarget, texture, _gl.COLOR_ATTACHMENT0, glTextureType, 0 );
+
+				}
 
 				if ( textureNeedsGenerateMipmaps( texture, supportsMips ) ) {
 
@@ -29748,8 +27538,6 @@ var app = (function (child_process) {
 
 			//
 
-			let userCamera = null;
-
 			const cameraL = new PerspectiveCamera();
 			cameraL.layers.enable( 1 );
 			cameraL.viewport = new Vector4();
@@ -29769,18 +27557,10 @@ var app = (function (child_process) {
 
 			//
 
-			this.cameraAutoUpdate = true; // @deprecated, r153
+			this.cameraAutoUpdate = true;
 			this.enabled = false;
 
 			this.isPresenting = false;
-
-			this.getCamera = function () {}; // @deprecated, r153
-
-			this.setUserCamera = function ( value ) {
-
-				userCamera = value;
-
-			};
 
 			this.getController = function ( index ) {
 
@@ -30218,15 +27998,9 @@ var app = (function (child_process) {
 
 			}
 
-			this.updateCameraXR = function ( camera ) {
+			this.updateCamera = function ( camera ) {
 
-				if ( session === null ) return camera;
-
-				if ( userCamera ) {
-
-					camera = userCamera;
-
-				}
+				if ( session === null ) return;
 
 				cameraXR.near = cameraR.near = cameraL.near = camera.near;
 				cameraXR.far = cameraR.far = cameraL.far = camera.far;
@@ -30272,19 +28046,11 @@ var app = (function (child_process) {
 
 				// update user camera and its children
 
-				if ( userCamera ) {
-
-					updateUserCamera( cameraXR, parent );
-
-				}
-
-				return cameraXR;
+				updateUserCamera( camera, cameraXR, parent );
 
 			};
 
-			function updateUserCamera( cameraXR, parent ) {
-
-				const camera = userCamera;
+			function updateUserCamera( camera, cameraXR, parent ) {
 
 				if ( parent === null ) {
 
@@ -30320,6 +28086,12 @@ var app = (function (child_process) {
 				}
 
 			}
+
+			this.getCamera = function () {
+
+				return cameraXR;
+
+			};
 
 			this.getFoveation = function () {
 
@@ -30718,7 +28490,7 @@ var app = (function (child_process) {
 				uniforms.lightMap.value = material.lightMap;
 
 				// artist-friendly light intensity scaling factor
-				const scaleFactor = ( renderer.useLegacyLights === true ) ? Math.PI : 1;
+				const scaleFactor = ( renderer._useLegacyLights === true ) ? Math.PI : 1;
 
 				uniforms.lightMapIntensity.value = material.lightMapIntensity * scaleFactor;
 
@@ -31557,7 +29329,7 @@ var app = (function (child_process) {
 
 			// physical lights
 
-			this.useLegacyLights = true;
+			this._useLegacyLights = false;
 
 			// tone mapping
 
@@ -31694,7 +29466,7 @@ var app = (function (child_process) {
 
 				}
 
-				if ( _gl instanceof WebGLRenderingContext ) { // @deprecated, r153
+				if ( typeof WebGLRenderingContext !== 'undefined' && _gl instanceof WebGLRenderingContext ) { // @deprecated, r153
 
 					console.warn( 'THREE.WebGLRenderer: WebGL 1 support was deprecated in r153 and will be removed in r163.' );
 
@@ -32012,15 +29784,13 @@ var app = (function (child_process) {
 						const g = clearColor.g;
 						const b = clearColor.b;
 
-						const __webglFramebuffer = properties.get( _currentRenderTarget ).__webglFramebuffer;
-
 						if ( isUnsignedType ) {
 
 							uintClearColor[ 0 ] = r;
 							uintClearColor[ 1 ] = g;
 							uintClearColor[ 2 ] = b;
 							uintClearColor[ 3 ] = a;
-							_gl.clearBufferuiv( _gl.COLOR, __webglFramebuffer, uintClearColor );
+							_gl.clearBufferuiv( _gl.COLOR, 0, uintClearColor );
 
 						} else {
 
@@ -32028,7 +29798,7 @@ var app = (function (child_process) {
 							intClearColor[ 1 ] = g;
 							intClearColor[ 2 ] = b;
 							intClearColor[ 3 ] = a;
-							_gl.clearBufferiv( _gl.COLOR, __webglFramebuffer, intClearColor );
+							_gl.clearBufferiv( _gl.COLOR, 0, intClearColor );
 
 						}
 
@@ -32202,6 +29972,9 @@ var app = (function (child_process) {
 				if ( material.wireframe === true ) {
 
 					index = geometries.getWireframeAttribute( geometry );
+
+					if ( index === undefined ) return;
+
 					rangeFactor = 2;
 
 				}
@@ -32366,7 +30139,7 @@ var app = (function (child_process) {
 
 				} );
 
-				currentRenderState.setupLights( _this.useLegacyLights );
+				currentRenderState.setupLights( _this._useLegacyLights );
 
 				scene.traverse( function ( object ) {
 
@@ -32461,7 +30234,9 @@ var app = (function (child_process) {
 
 				if ( xr.enabled === true && xr.isPresenting === true ) {
 
-					camera = xr.updateCameraXR( camera ); // use XR camera for rendering
+					if ( xr.cameraAutoUpdate === true ) xr.updateCamera( camera );
+
+					camera = xr.getCamera(); // use XR camera for rendering
 
 				}
 
@@ -32496,6 +30271,8 @@ var app = (function (child_process) {
 
 				//
 
+				this.info.render.frame ++;
+
 				if ( _clippingEnabled === true ) clipping.beginShadows();
 
 				const shadowsArray = currentRenderState.state.shadowsArray;
@@ -32508,7 +30285,6 @@ var app = (function (child_process) {
 
 				if ( this.info.autoReset === true ) this.info.reset();
 
-				this.info.render.frame ++;
 
 				//
 
@@ -32516,7 +30292,7 @@ var app = (function (child_process) {
 
 				// render scene
 
-				currentRenderState.setupLights( _this.useLegacyLights );
+				currentRenderState.setupLights( _this._useLegacyLights );
 
 				if ( camera.isArrayCamera ) {
 
@@ -32638,19 +30414,6 @@ var app = (function (child_process) {
 
 						if ( ! object.frustumCulled || _frustum.intersectsObject( object ) ) {
 
-							if ( object.isSkinnedMesh ) {
-
-								// update skeleton only once in a frame
-
-								if ( object.skeleton.frame !== info.render.frame ) {
-
-									object.skeleton.update();
-									object.skeleton.frame = info.render.frame;
-
-								}
-
-							}
-
 							const geometry = objects.update( object );
 							const material = object.material;
 
@@ -32751,7 +30514,7 @@ var app = (function (child_process) {
 						generateMipmaps: true,
 						type: extensions.has( 'EXT_color_buffer_half_float' ) ? HalfFloatType : UnsignedByteType,
 						minFilter: LinearMipmapLinearFilter,
-						samples: ( isWebGL2 && antialias === true ) ? 4 : 0
+						samples: ( isWebGL2 ) ? 4 : 0
 					} );
 
 					// debug
@@ -33018,6 +30781,7 @@ var app = (function (child_process) {
 
 				materialProperties.outputColorSpace = parameters.outputColorSpace;
 				materialProperties.instancing = parameters.instancing;
+				materialProperties.instancingColor = parameters.instancingColor;
 				materialProperties.skinning = parameters.skinning;
 				materialProperties.morphTargets = parameters.morphTargets;
 				materialProperties.morphNormals = parameters.morphNormals;
@@ -33046,7 +30810,18 @@ var app = (function (child_process) {
 				const morphTargets = !! geometry.morphAttributes.position;
 				const morphNormals = !! geometry.morphAttributes.normal;
 				const morphColors = !! geometry.morphAttributes.color;
-				const toneMapping = material.toneMapped ? _this.toneMapping : NoToneMapping;
+
+				let toneMapping = NoToneMapping;
+
+				if ( material.toneMapped ) {
+
+					if ( _currentRenderTarget === null || _currentRenderTarget.isXRRenderTarget === true ) {
+
+						toneMapping = _this.toneMapping;
+
+					}
+
+				}
 
 				const morphAttribute = geometry.morphAttributes.position || geometry.morphAttributes.normal || geometry.morphAttributes.color;
 				const morphTargetsCount = ( morphAttribute !== undefined ) ? morphAttribute.length : 0;
@@ -33098,6 +30873,14 @@ var app = (function (child_process) {
 						needsProgramChange = true;
 
 					} else if ( ! object.isSkinnedMesh && materialProperties.skinning === true ) {
+
+						needsProgramChange = true;
+
+					} else if ( object.isInstancedMesh && materialProperties.instancingColor === true && object.instanceColor === null ) {
+
+						needsProgramChange = true;
+
+					} else if ( object.isInstancedMesh && materialProperties.instancingColor === false && object.instanceColor !== null ) {
 
 						needsProgramChange = true;
 
@@ -33516,7 +31299,16 @@ var app = (function (child_process) {
 
 					if ( renderTarget.isWebGLCubeRenderTarget ) {
 
-						framebuffer = __webglFramebuffer[ activeCubeFace ];
+						if ( Array.isArray( __webglFramebuffer[ activeCubeFace ] ) ) {
+
+							framebuffer = __webglFramebuffer[ activeCubeFace ][ activeMipmapLevel ];
+
+						} else {
+
+							framebuffer = __webglFramebuffer[ activeCubeFace ];
+
+						}
+
 						isCube = true;
 
 					} else if ( ( capabilities.isWebGL2 && renderTarget.samples > 0 ) && textures.useMultisampledRTT( renderTarget ) === false ) {
@@ -33525,7 +31317,15 @@ var app = (function (child_process) {
 
 					} else {
 
-						framebuffer = __webglFramebuffer;
+						if ( Array.isArray( __webglFramebuffer ) ) {
+
+							framebuffer = __webglFramebuffer[ activeMipmapLevel ];
+
+						} else {
+
+							framebuffer = __webglFramebuffer;
+
+						}
 
 					}
 
@@ -33824,14 +31624,14 @@ var app = (function (child_process) {
 
 		get physicallyCorrectLights() { // @deprecated, r150
 
-			console.warn( 'THREE.WebGLRenderer: the property .physicallyCorrectLights has been removed. Set renderer.useLegacyLights instead.' );
+			console.warn( 'THREE.WebGLRenderer: The property .physicallyCorrectLights has been removed. Set renderer.useLegacyLights instead.' );
 			return ! this.useLegacyLights;
 
 		}
 
 		set physicallyCorrectLights( value ) { // @deprecated, r150
 
-			console.warn( 'THREE.WebGLRenderer: the property .physicallyCorrectLights has been removed. Set renderer.useLegacyLights instead.' );
+			console.warn( 'THREE.WebGLRenderer: The property .physicallyCorrectLights has been removed. Set renderer.useLegacyLights instead.' );
 			this.useLegacyLights = ! value;
 
 		}
@@ -33847,6 +31647,20 @@ var app = (function (child_process) {
 
 			console.warn( 'THREE.WebGLRenderer: Property .outputEncoding has been removed. Use .outputColorSpace instead.' );
 			this.outputColorSpace = encoding === sRGBEncoding ? SRGBColorSpace : LinearSRGBColorSpace;
+
+		}
+
+		get useLegacyLights() { // @deprecated, r155
+
+			console.warn( 'THREE.WebGLRenderer: The property .useLegacyLights has been deprecated. Migrate your lighting according to the following guide: https://discourse.threejs.org/t/updates-to-lighting-in-three-js-r155/53733.' );
+			return this._useLegacyLights;
+
+		}
+
+		set useLegacyLights( value ) { // @deprecated, r155
+
+			console.warn( 'THREE.WebGLRenderer: The property .useLegacyLights has been deprecated. Migrate your lighting according to the following guide: https://discourse.threejs.org/t/updates-to-lighting-in-three-js-r155/53733.' );
+			this._useLegacyLights = value;
 
 		}
 
@@ -33976,20 +31790,6 @@ var app = (function (child_process) {
 			if ( this.backgroundIntensity !== 1 ) data.object.backgroundIntensity = this.backgroundIntensity;
 
 			return data;
-
-		}
-
-		get autoUpdate() { // @deprecated, r144
-
-			console.warn( 'THREE.Scene: autoUpdate was renamed to matrixWorldAutoUpdate in r144.' );
-			return this.matrixWorldAutoUpdate;
-
-		}
-
-		set autoUpdate( value ) { // @deprecated, r144
-
-			console.warn( 'THREE.Scene: autoUpdate was renamed to matrixWorldAutoUpdate in r144.' );
-			this.matrixWorldAutoUpdate = value;
 
 		}
 
@@ -35195,8 +32995,6 @@ var app = (function (child_process) {
 			this.boneTexture = null;
 			this.boneTextureSize = 0;
 
-			this.frame = - 1;
-
 			this.init();
 
 		}
@@ -36321,6 +34119,21 @@ var app = (function (child_process) {
 			this.isCompressedArrayTexture = true;
 			this.image.depth = depth;
 			this.wrapR = ClampToEdgeWrapping;
+
+		}
+
+	}
+
+	class CompressedCubeTexture extends CompressedTexture {
+
+		constructor( images, format, type ) {
+
+			super( undefined, images[ 0 ].width, images[ 0 ].height, format, type, CubeReflectionMapping );
+
+			this.isCompressedCubeTexture = true;
+			this.isCubeTexture = true;
+
+			this.image = images;
 
 		}
 
@@ -38436,7 +36249,7 @@ var app = (function (child_process) {
 
 			this.parameters = {
 				radius: radius,
-				height: length,
+				length: length,
 				capSegments: capSegments,
 				radialSegments: radialSegments,
 			};
@@ -45255,6 +43068,8 @@ var app = (function (child_process) {
 
 	}
 
+	Loader.DEFAULT_MATERIAL_NAME = '__DEFAULT';
+
 	const loading = {};
 
 	class HttpError extends Error {
@@ -45884,9 +43699,28 @@ var app = (function (child_process) {
 			loader.setWithCredentials( scope.withCredentials );
 			loader.load( url, function ( buffer ) {
 
-				const texData = scope.parse( buffer );
+				let texData;
 
-				if ( ! texData ) return;
+				try {
+
+					texData = scope.parse( buffer );
+
+				} catch ( error ) {
+
+					if ( onError !== undefined ) {
+
+						onError( error );
+
+					} else {
+
+						console.error( error );
+						return;
+
+					}
+
+				}
+
+				if ( ! texData ) return onError(); // TODO: Remove this when all loaders properly throw errors
 
 				if ( texData.image !== undefined ) {
 
@@ -46972,6 +44806,7 @@ var app = (function (child_process) {
 			if ( json.opacity !== undefined ) material.opacity = json.opacity;
 			if ( json.transparent !== undefined ) material.transparent = json.transparent;
 			if ( json.alphaTest !== undefined ) material.alphaTest = json.alphaTest;
+			if ( json.alphaHash !== undefined ) material.alphaHash = json.alphaHash;
 			if ( json.depthTest !== undefined ) material.depthTest = json.depthTest;
 			if ( json.depthWrite !== undefined ) material.depthWrite = json.depthWrite;
 			if ( json.colorWrite !== undefined ) material.colorWrite = json.colorWrite;
@@ -50407,7 +48242,7 @@ var app = (function (child_process) {
 			// ensure there is a value node
 			if ( ! targetObject ) {
 
-				console.error( 'THREE.PropertyBinding: Trying to update node for track: ' + this.path + ' but it wasn\'t found.' );
+				console.warn( 'THREE.PropertyBinding: No target node found for track: ' + this.path + '.' );
 				return;
 
 			}
@@ -54796,216 +52631,6 @@ var app = (function (child_process) {
 
 	}
 
-	class BoxBufferGeometry extends BoxGeometry { // @deprecated, r144
-
-		constructor( width, height, depth, widthSegments, heightSegments, depthSegments ) {
-
-			console.warn( 'THREE.BoxBufferGeometry has been renamed to THREE.BoxGeometry.' );
-			super( width, height, depth, widthSegments, heightSegments, depthSegments );
-
-
-		}
-
-	}
-
-	class CapsuleBufferGeometry extends CapsuleGeometry { // @deprecated, r144
-
-		constructor( radius, length, capSegments, radialSegments ) {
-
-			console.warn( 'THREE.CapsuleBufferGeometry has been renamed to THREE.CapsuleGeometry.' );
-			super( radius, length, capSegments, radialSegments );
-
-		}
-
-	}
-
-	class CircleBufferGeometry extends CircleGeometry { // @deprecated, r144
-
-		constructor( radius, segments, thetaStart, thetaLength ) {
-
-			console.warn( 'THREE.CircleBufferGeometry has been renamed to THREE.CircleGeometry.' );
-			super( radius, segments, thetaStart, thetaLength );
-
-		}
-
-	}
-
-	class ConeBufferGeometry extends ConeGeometry { // @deprecated, r144
-
-		constructor( radius, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength ) {
-
-			console.warn( 'THREE.ConeBufferGeometry has been renamed to THREE.ConeGeometry.' );
-			super( radius, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength );
-
-		}
-
-	}
-
-	class CylinderBufferGeometry extends CylinderGeometry { // @deprecated, r144
-
-		constructor( radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength ) {
-
-			console.warn( 'THREE.CylinderBufferGeometry has been renamed to THREE.CylinderGeometry.' );
-			super( radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength );
-
-		}
-
-	}
-
-	class DodecahedronBufferGeometry extends DodecahedronGeometry { // @deprecated, r144
-
-		constructor( radius, detail ) {
-
-			console.warn( 'THREE.DodecahedronBufferGeometry has been renamed to THREE.DodecahedronGeometry.' );
-			super( radius, detail );
-
-		}
-
-	}
-
-	class ExtrudeBufferGeometry extends ExtrudeGeometry { // @deprecated, r144
-
-		constructor( shapes, options ) {
-
-			console.warn( 'THREE.ExtrudeBufferGeometry has been renamed to THREE.ExtrudeGeometry.' );
-			super( shapes, options );
-
-		}
-
-	}
-
-	class IcosahedronBufferGeometry extends IcosahedronGeometry { // @deprecated, r144
-
-		constructor( radius, detail ) {
-
-			console.warn( 'THREE.IcosahedronBufferGeometry has been renamed to THREE.IcosahedronGeometry.' );
-			super( radius, detail );
-
-		}
-
-	}
-
-	class LatheBufferGeometry extends LatheGeometry { // @deprecated, r144
-
-		constructor( points, segments, phiStart, phiLength ) {
-
-			console.warn( 'THREE.LatheBufferGeometry has been renamed to THREE.LatheGeometry.' );
-			super( points, segments, phiStart, phiLength );
-
-		}
-
-	}
-
-	class OctahedronBufferGeometry extends OctahedronGeometry { // @deprecated, r144
-
-		constructor( radius, detail ) {
-
-			console.warn( 'THREE.OctahedronBufferGeometry has been renamed to THREE.OctahedronGeometry.' );
-			super( radius, detail );
-
-		}
-
-	}
-
-	class PlaneBufferGeometry extends PlaneGeometry { // @deprecated, r144
-
-		constructor( width, height, widthSegments, heightSegments ) {
-
-			console.warn( 'THREE.PlaneBufferGeometry has been renamed to THREE.PlaneGeometry.' );
-			super( width, height, widthSegments, heightSegments );
-
-		}
-
-	}
-
-	class PolyhedronBufferGeometry extends PolyhedronGeometry { // @deprecated, r144
-
-		constructor( vertices, indices, radius, detail ) {
-
-			console.warn( 'THREE.PolyhedronBufferGeometry has been renamed to THREE.PolyhedronGeometry.' );
-			super( vertices, indices, radius, detail );
-
-		}
-
-	}
-
-	class RingBufferGeometry extends RingGeometry { // @deprecated, r144
-
-		constructor( innerRadius, outerRadius, thetaSegments, phiSegments, thetaStart, thetaLength ) {
-
-			console.warn( 'THREE.RingBufferGeometry has been renamed to THREE.RingGeometry.' );
-			super( innerRadius, outerRadius, thetaSegments, phiSegments, thetaStart, thetaLength );
-
-		}
-
-	}
-
-	class ShapeBufferGeometry extends ShapeGeometry { // @deprecated, r144
-
-		constructor( shapes, curveSegments ) {
-
-			console.warn( 'THREE.ShapeBufferGeometry has been renamed to THREE.ShapeGeometry.' );
-			super( shapes, curveSegments );
-
-		}
-
-	}
-
-	class SphereBufferGeometry extends SphereGeometry { // @deprecated, r144
-
-		constructor( radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength ) {
-
-			console.warn( 'THREE.SphereBufferGeometry has been renamed to THREE.SphereGeometry.' );
-			super( radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength );
-
-		}
-
-	}
-
-	class TetrahedronBufferGeometry extends TetrahedronGeometry { // @deprecated, r144
-
-		constructor( radius, detail ) {
-
-			console.warn( 'THREE.TetrahedronBufferGeometry has been renamed to THREE.TetrahedronGeometry.' );
-			super( radius, detail );
-
-		}
-
-	}
-
-	class TorusBufferGeometry extends TorusGeometry { // @deprecated, r144
-
-		constructor( radius, tube, radialSegments, tubularSegments, arc ) {
-
-			console.warn( 'THREE.TorusBufferGeometry has been renamed to THREE.TorusGeometry.' );
-			super( radius, tube, radialSegments, tubularSegments, arc );
-
-		}
-
-	}
-
-	class TorusKnotBufferGeometry extends TorusKnotGeometry { // @deprecated, r144
-
-		constructor( radius, tube, tubularSegments, radialSegments, p, q ) {
-
-			console.warn( 'THREE.TorusKnotBufferGeometry has been renamed to THREE.TorusKnotGeometry.' );
-			super( radius, tube, tubularSegments, radialSegments, p, q );
-
-		}
-
-	}
-
-	class TubeBufferGeometry extends TubeGeometry { // @deprecated, r144
-
-		constructor( path, tubularSegments, radius, radialSegments, closed ) {
-
-			console.warn( 'THREE.TubeBufferGeometry has been renamed to THREE.TubeGeometry.' );
-			super( path, tubularSegments, radius, radialSegments, closed );
-
-		}
-
-	}
-
 	if ( typeof __THREE_DEVTOOLS__ !== 'undefined' ) {
 
 		__THREE_DEVTOOLS__.dispatchEvent( new CustomEvent( 'register', { detail: {
@@ -55064,7 +52689,6 @@ var app = (function (child_process) {
 		Box2: Box2,
 		Box3: Box3,
 		Box3Helper: Box3Helper,
-		BoxBufferGeometry: BoxBufferGeometry,
 		BoxGeometry: BoxGeometry,
 		BoxHelper: BoxHelper,
 		BufferAttribute: BufferAttribute,
@@ -55075,11 +52699,9 @@ var app = (function (child_process) {
 		Camera: Camera,
 		CameraHelper: CameraHelper,
 		CanvasTexture: CanvasTexture,
-		CapsuleBufferGeometry: CapsuleBufferGeometry,
 		CapsuleGeometry: CapsuleGeometry,
 		CatmullRomCurve3: CatmullRomCurve3,
 		CineonToneMapping: CineonToneMapping,
-		CircleBufferGeometry: CircleBufferGeometry,
 		CircleGeometry: CircleGeometry,
 		ClampToEdgeWrapping: ClampToEdgeWrapping,
 		Clock: Clock,
@@ -55087,9 +52709,9 @@ var app = (function (child_process) {
 		ColorKeyframeTrack: ColorKeyframeTrack,
 		ColorManagement: ColorManagement,
 		CompressedArrayTexture: CompressedArrayTexture,
+		CompressedCubeTexture: CompressedCubeTexture,
 		CompressedTexture: CompressedTexture,
 		CompressedTextureLoader: CompressedTextureLoader,
-		ConeBufferGeometry: ConeBufferGeometry,
 		ConeGeometry: ConeGeometry,
 		CubeCamera: CubeCamera,
 		CubeReflectionMapping: CubeReflectionMapping,
@@ -55108,7 +52730,6 @@ var app = (function (child_process) {
 		CurvePath: CurvePath,
 		CustomBlending: CustomBlending,
 		CustomToneMapping: CustomToneMapping,
-		CylinderBufferGeometry: CylinderBufferGeometry,
 		CylinderGeometry: CylinderGeometry,
 		Cylindrical: Cylindrical,
 		Data3DTexture: Data3DTexture,
@@ -55126,7 +52747,6 @@ var app = (function (child_process) {
 		DirectionalLightHelper: DirectionalLightHelper,
 		DiscreteInterpolant: DiscreteInterpolant,
 		DisplayP3ColorSpace: DisplayP3ColorSpace,
-		DodecahedronBufferGeometry: DodecahedronBufferGeometry,
 		DodecahedronGeometry: DodecahedronGeometry,
 		DoubleSide: DoubleSide,
 		DstAlphaFactor: DstAlphaFactor,
@@ -55143,7 +52763,6 @@ var app = (function (child_process) {
 		EquirectangularRefractionMapping: EquirectangularRefractionMapping,
 		Euler: Euler,
 		EventDispatcher: EventDispatcher,
-		ExtrudeBufferGeometry: ExtrudeBufferGeometry,
 		ExtrudeGeometry: ExtrudeGeometry,
 		FileLoader: FileLoader,
 		Float16BufferAttribute: Float16BufferAttribute,
@@ -55170,7 +52789,6 @@ var app = (function (child_process) {
 		HemisphereLight: HemisphereLight,
 		HemisphereLightHelper: HemisphereLightHelper,
 		HemisphereLightProbe: HemisphereLightProbe,
-		IcosahedronBufferGeometry: IcosahedronBufferGeometry,
 		IcosahedronGeometry: IcosahedronGeometry,
 		ImageBitmapLoader: ImageBitmapLoader,
 		ImageLoader: ImageLoader,
@@ -55195,7 +52813,6 @@ var app = (function (child_process) {
 		KeepStencilOp: KeepStencilOp,
 		KeyframeTrack: KeyframeTrack,
 		LOD: LOD,
-		LatheBufferGeometry: LatheBufferGeometry,
 		LatheGeometry: LatheGeometry,
 		Layers: Layers,
 		LessCompare: LessCompare,
@@ -55274,7 +52891,6 @@ var app = (function (child_process) {
 		Object3D: Object3D,
 		ObjectLoader: ObjectLoader,
 		ObjectSpaceNormalMap: ObjectSpaceNormalMap,
-		OctahedronBufferGeometry: OctahedronBufferGeometry,
 		OctahedronGeometry: OctahedronGeometry,
 		OneFactor: OneFactor,
 		OneMinusDstAlphaFactor: OneMinusDstAlphaFactor,
@@ -55288,7 +52904,6 @@ var app = (function (child_process) {
 		Path: Path,
 		PerspectiveCamera: PerspectiveCamera,
 		Plane: Plane,
-		PlaneBufferGeometry: PlaneBufferGeometry,
 		PlaneGeometry: PlaneGeometry,
 		PlaneHelper: PlaneHelper,
 		PointLight: PointLight,
@@ -55296,7 +52911,6 @@ var app = (function (child_process) {
 		Points: Points,
 		PointsMaterial: PointsMaterial,
 		PolarGridHelper: PolarGridHelper,
-		PolyhedronBufferGeometry: PolyhedronBufferGeometry,
 		PolyhedronGeometry: PolyhedronGeometry,
 		PositionalAudio: PositionalAudio,
 		PropertyBinding: PropertyBinding,
@@ -55347,10 +52961,10 @@ var app = (function (child_process) {
 		RedFormat: RedFormat,
 		RedIntegerFormat: RedIntegerFormat,
 		ReinhardToneMapping: ReinhardToneMapping,
+		RenderTarget: RenderTarget,
 		RepeatWrapping: RepeatWrapping,
 		ReplaceStencilOp: ReplaceStencilOp,
 		ReverseSubtractEquation: ReverseSubtractEquation,
-		RingBufferGeometry: RingBufferGeometry,
 		RingGeometry: RingGeometry,
 		SIGNED_RED_GREEN_RGTC2_Format: SIGNED_RED_GREEN_RGTC2_Format,
 		SIGNED_RED_RGTC1_Format: SIGNED_RED_RGTC1_Format,
@@ -55361,7 +52975,6 @@ var app = (function (child_process) {
 		ShaderMaterial: ShaderMaterial,
 		ShadowMaterial: ShadowMaterial,
 		Shape: Shape,
-		ShapeBufferGeometry: ShapeBufferGeometry,
 		ShapeGeometry: ShapeGeometry,
 		ShapePath: ShapePath,
 		ShapeUtils: ShapeUtils,
@@ -55371,7 +52984,6 @@ var app = (function (child_process) {
 		SkinnedMesh: SkinnedMesh,
 		Source: Source,
 		Sphere: Sphere,
-		SphereBufferGeometry: SphereBufferGeometry,
 		SphereGeometry: SphereGeometry,
 		Spherical: Spherical,
 		SphericalHarmonics3: SphericalHarmonics3,
@@ -55395,19 +53007,15 @@ var app = (function (child_process) {
 		SubtractiveBlending: SubtractiveBlending,
 		TOUCH: TOUCH,
 		TangentSpaceNormalMap: TangentSpaceNormalMap,
-		TetrahedronBufferGeometry: TetrahedronBufferGeometry,
 		TetrahedronGeometry: TetrahedronGeometry,
 		Texture: Texture,
 		TextureLoader: TextureLoader,
-		TorusBufferGeometry: TorusBufferGeometry,
 		TorusGeometry: TorusGeometry,
-		TorusKnotBufferGeometry: TorusKnotBufferGeometry,
 		TorusKnotGeometry: TorusKnotGeometry,
 		Triangle: Triangle,
 		TriangleFanDrawMode: TriangleFanDrawMode,
 		TriangleStripDrawMode: TriangleStripDrawMode,
 		TrianglesDrawMode: TrianglesDrawMode,
-		TubeBufferGeometry: TubeBufferGeometry,
 		TubeGeometry: TubeGeometry,
 		TwoPassDoubleSide: TwoPassDoubleSide,
 		UVMapping: UVMapping,
@@ -55455,7 +53063,7 @@ var app = (function (child_process) {
 	    return getContext('threlte-internal-context');
 	};
 
-	/* node_modules/@threlte/core/dist/internal/DisposableObject.svelte generated by Svelte v3.59.2 */
+	/* node_modules/@threlte/core/dist/internal/DisposableObject.svelte generated by Svelte v4.2.1 */
 
 	function create_fragment$6(ctx) {
 		let current;
@@ -55531,7 +53139,7 @@ var app = (function (child_process) {
 		const parentDispose = getContext(contextName);
 		validate_store(parentDispose, 'parentDispose');
 		component_subscribe($$self, parentDispose, value => $$invalidate(7, $parentDispose = value));
-		const mergedDispose = writable$1(dispose ?? $parentDispose ?? true);
+		const mergedDispose = writable(dispose ?? $parentDispose ?? true);
 		validate_store(mergedDispose, 'mergedDispose');
 		component_subscribe($$self, mergedDispose, value => $$invalidate(6, $mergedDispose = value));
 		setContext(contextName, mergedDispose);
@@ -55558,7 +53166,7 @@ var app = (function (child_process) {
 			getContext,
 			onDestroy,
 			setContext,
-			writable: writable$1,
+			writable,
 			useThrelteInternal,
 			collectDisposableObjects,
 			addDisposableObjects,
@@ -55647,7 +53255,7 @@ var app = (function (child_process) {
 	}
 
 	function createObjectStore(object, onChange) {
-	    const objectStore = writable$1(object);
+	    const objectStore = writable(object);
 	    let unwrappedObject = object;
 	    const unsubscribeObjectStore = objectStore.subscribe((o) => (unwrappedObject = o));
 	    onDestroy(unsubscribeObjectStore);
@@ -55685,7 +53293,7 @@ var app = (function (child_process) {
 	    return getContext('threlte-hierarchical-parent-context');
 	};
 
-	/* node_modules/@threlte/core/dist/internal/HierarchicalObject.svelte generated by Svelte v3.59.2 */
+	/* node_modules/@threlte/core/dist/internal/HierarchicalObject.svelte generated by Svelte v4.2.1 */
 
 	function create_fragment$5(ctx) {
 		let current;
@@ -55961,7 +53569,7 @@ var app = (function (child_process) {
 		}
 	}
 
-	/* node_modules/@threlte/core/dist/internal/SceneGraphObject.svelte generated by Svelte v3.59.2 */
+	/* node_modules/@threlte/core/dist/internal/SceneGraphObject.svelte generated by Svelte v4.2.1 */
 
 	// (5:0) <HierarchicalObject   {object}   onChildMount={(child) => object.add(child)}   onChildDestroy={(child) => object.remove(child)} >
 	function create_default_slot$4(ctx) {
@@ -56414,14 +54022,14 @@ var app = (function (child_process) {
 	    };
 	    let currentEventNames = [];
 	    let currentRef;
-	    const eventNames = writable$1([]);
+	    const eventNames = writable([]);
 	    const unsubscribeEventNames = eventNames.subscribe((eventNames) => {
 	        cleanupEventListeners(currentRef, currentEventNames);
 	        addEventListeners(currentRef, eventNames);
 	        currentEventNames = eventNames;
 	    });
 	    onDestroy(unsubscribeEventNames);
-	    const ref = writable$1();
+	    const ref = writable();
 	    const unsubscribeRef = ref.subscribe((value) => {
 	        cleanupEventListeners(currentRef, currentEventNames);
 	        addEventListeners(value, currentEventNames);
@@ -56575,7 +54183,7 @@ var app = (function (child_process) {
 	    };
 	};
 
-	/* node_modules/@threlte/core/dist/components/T/T.svelte generated by Svelte v3.59.2 */
+	/* node_modules/@threlte/core/dist/components/T/T.svelte generated by Svelte v4.2.1 */
 	const get_default_slot_changes_1 = dirty => ({ ref: dirty & /*ref*/ 2 });
 	const get_default_slot_context_1 = ctx => ({ ref: /*ref*/ ctx[1] });
 	const get_default_slot_changes = dirty => ({ ref: dirty & /*ref*/ 2 });
@@ -56633,7 +54241,7 @@ var app = (function (child_process) {
 		return block;
 	}
 
-	// (100:0) {:else}
+	// (103:0) {:else}
 	function create_else_block(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[12].default;
@@ -56684,14 +54292,14 @@ var app = (function (child_process) {
 			block,
 			id: create_else_block.name,
 			type: "else",
-			source: "(100:0) {:else}",
+			source: "(103:0) {:else}",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (96:0) {#if extendsObject3D(ref)}
+	// (99:0) {#if extendsObject3D(ref)}
 	function create_if_block$1(ctx) {
 		let scenegraphobject;
 		let current;
@@ -56741,14 +54349,14 @@ var app = (function (child_process) {
 			block,
 			id: create_if_block$1.name,
 			type: "if",
-			source: "(96:0) {#if extendsObject3D(ref)}",
+			source: "(99:0) {#if extendsObject3D(ref)}",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (97:2) <SceneGraphObject object={ref}>
+	// (100:2) <SceneGraphObject object={ref}>
 	function create_default_slot$3(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[12].default;
@@ -56799,7 +54407,7 @@ var app = (function (child_process) {
 			block,
 			id: create_default_slot$3.name,
 			type: "slot",
-			source: "(97:2) <SceneGraphObject object={ref}>",
+			source: "(100:2) <SceneGraphObject object={ref}>",
 			ctx
 		});
 
@@ -56909,10 +54517,13 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t);
+					detach_dev(if_block1_anchor);
+				}
+
 				if (if_block0) if_block0.d(detaching);
-				if (detaching) detach_dev(t);
 				if_blocks[current_block_type_index].d(detaching);
-				if (detaching) detach_dev(if_block1_anchor);
 			}
 		};
 
@@ -56958,7 +54569,9 @@ var app = (function (child_process) {
 		// We can't create the object in a reactive statement due to providing context
 		let ref = isClass(is) && argsIsConstructorParameters(args)
 		? new is(...args)
-		: isClass(is) ? new is() : is; // TODO: fix this any
+		: isClass(
+				is
+			) ? new is() : is;
 
 		// The ref is created, emit the event
 		createEvent.updateRef(ref);
@@ -56975,14 +54588,16 @@ var app = (function (child_process) {
 
 			$$invalidate(1, ref = isClass(is) && argsIsConstructorParameters(args)
 			? new is(...args)
-			: isClass(is) ? new is() : is); // TODO: fix this any
+			: isClass(
+					is
+				) ? new is() : is);
 
 			// The ref is recreated, emit the event
 			createEvent.updateRef(ref);
 		};
 
 		let { ref: publicRef = ref } = $$props;
-		const refStore = writable$1(ref);
+		const refStore = writable(ref);
 		setContext('threlte-hierarchical-parent-context', refStore);
 
 		// Plugins are initialized here so that pluginsProps
@@ -57033,7 +54648,7 @@ var app = (function (child_process) {
 		$$self.$capture_state = () => ({
 			getContext,
 			setContext,
-			writable: writable$1,
+			writable,
 			DisposableObject,
 			SceneGraphObject,
 			useAttach,
@@ -57227,7 +54842,7 @@ var app = (function (child_process) {
 	const browser = typeof window !== 'undefined';
 
 	const useParentSize = () => {
-	    const parentSize = writable$1({ width: 0, height: 0 });
+	    const parentSize = writable({ width: 0, height: 0 });
 	    if (!browser) {
 	        return {
 	            parentSize,
@@ -57248,10 +54863,9 @@ var app = (function (child_process) {
 	    // The canvas should match the contentRect of its parent
 	    const resizeObserver = new ResizeObserver(([entry]) => {
 	        const { contentRect } = entry;
-	        parentSize.update((value) => {
-	            value.width = contentRect.width;
-	            value.height = contentRect.height;
-	            return value;
+	        parentSize.set({
+	            width: contentRect.width,
+	            height: contentRect.height
 	        });
 	    });
 	    // Use a mutation observer to detect reparenting
@@ -57281,6 +54895,9 @@ var app = (function (child_process) {
 	    };
 	};
 
+	// REVISION can be '{number}' or '{number}dev'
+	const revision = Number.parseInt(REVISION.replace('dev', ''));
+
 	/**
 	 * @file This file contains the cache implementation for Threlte. The cache is
 	 * used to cache the return value of a promise based on the provided keys.
@@ -57298,27 +54915,6 @@ var app = (function (child_process) {
 
 	const getThrelteUserData = (object) => {
 	    return object.userData;
-	};
-
-	const createDefaultCamera = () => {
-	    const defaultCamera = new PerspectiveCamera(75, 0, 0.1, 1000);
-	    getThrelteUserData(defaultCamera).threlteDefaultCamera = true;
-	    defaultCamera.position.z = 5;
-	    defaultCamera.lookAt(0, 0, 0);
-	    return defaultCamera;
-	};
-	const setDefaultCameraAspectOnSizeChange = (ctx) => {
-	    watch(ctx.size, (size) => {
-	        if (getThrelteUserData(get_store_value(ctx.camera)).threlteDefaultCamera) {
-	            ctx.camera.update((c) => {
-	                const cam = c;
-	                cam.aspect = size.width / size.height;
-	                cam.updateProjectionMatrix();
-	                ctx.invalidate('Default camera: aspect ratio changed');
-	                return cam;
-	            });
-	        }
-	    });
 	};
 
 	/**
@@ -57397,7 +54993,7 @@ var app = (function (child_process) {
 	 * @returns
 	 */
 	const currentWritable = (value) => {
-	    const store = writable$1(value);
+	    const store = writable(value);
 	    const extendedWritable = {
 	        set: (value) => {
 	            extendedWritable.current = value;
@@ -57412,6 +55008,27 @@ var app = (function (child_process) {
 	        current: value
 	    };
 	    return extendedWritable;
+	};
+
+	const createDefaultCamera = () => {
+	    const defaultCamera = new PerspectiveCamera(75, 0, 0.1, 1000);
+	    getThrelteUserData(defaultCamera).threlteDefaultCamera = true;
+	    defaultCamera.position.z = 5;
+	    defaultCamera.lookAt(0, 0, 0);
+	    return defaultCamera;
+	};
+	const setDefaultCameraAspectOnSizeChange = (ctx) => {
+	    watch(ctx.size, (size) => {
+	        if (getThrelteUserData(get_store_value(ctx.camera)).threlteDefaultCamera) {
+	            ctx.camera.update((c) => {
+	                const cam = c;
+	                cam.aspect = size.width / size.height;
+	                cam.updateProjectionMatrix();
+	                ctx.invalidate('Default camera: aspect ratio changed');
+	                return cam;
+	            });
+	        }
+	    });
 	};
 
 	/**
@@ -57654,15 +55271,16 @@ var app = (function (child_process) {
 	 * update the renderer accordingly.
 	 *
 	 * It listens to the following context properties:
-	 * - `size`
-	 * - `toneMapping`
+	 * - `colorManagementEnabled`
 	 * - `colorSpace`
 	 * - `dpr`
+	 * - `size`
 	 * - `shadows`
-	 * - `colorManagementEnabled`
+	 * - `toneMapping`
+	 * - `useLegacyLights`
 	 */
 	const useRenderer = (ctx) => {
-	    const renderer = writable$1(undefined);
+	    const renderer = writable(undefined);
 	    const createRenderer = (canvas, rendererParameters) => {
 	        ctx.renderer = new WebGLRenderer({
 	            powerPreference: 'high-performance',
@@ -57673,20 +55291,17 @@ var app = (function (child_process) {
 	        });
 	        renderer.set(ctx.renderer);
 	    };
-	    watch([
-	        renderer,
-	        ctx.size,
-	        ctx.toneMapping,
-	        ctx.colorSpace,
-	        ctx.dpr,
-	        ctx.shadows,
-	        ctx.colorManagementEnabled,
-	        ctx.useLegacyLights
-	    ], ([renderer, size, toneMapping, colorSpace, dpr, shadows, colorManagementEnabled, useLegacyLights]) => {
+	    watch([ctx.colorManagementEnabled], ([colorManagementEnabled]) => {
+	        if (revision >= 150) {
+	            ColorManagement.enabled = colorManagementEnabled;
+	        }
+	        else {
+	            ColorManagement.legacyMode = !colorManagementEnabled;
+	        }
+	    });
+	    watch([renderer, ctx.colorSpace], ([renderer, colorSpace]) => {
 	        if (!renderer)
 	            return;
-	        renderer.setSize(size.width, size.height);
-	        renderer.setPixelRatio(dpr);
 	        // check if the renderer has a colorSpace property, if so, use that
 	        // otherwise, use the old encoding property
 	        if (rendererHasOutputColorSpaceProperty(renderer)) {
@@ -57701,7 +55316,18 @@ var app = (function (child_process) {
 	                renderer.outputEncoding = encoding;
 	            }
 	        }
-	        renderer.toneMapping = toneMapping;
+	    });
+	    watch([renderer, ctx.dpr], ([renderer, dpr]) => {
+	        renderer?.setPixelRatio(dpr);
+	    });
+	    watch([renderer, ctx.size], ([renderer, size]) => {
+	        if (renderer?.xr?.isPresenting)
+	            return;
+	        renderer?.setSize(size.width, size.height);
+	    });
+	    watch([renderer, ctx.shadows], ([renderer, shadows]) => {
+	        if (!renderer)
+	            return;
 	        renderer.shadowMap.enabled = !!shadows;
 	        if (shadows && shadows !== true) {
 	            renderer.shadowMap.type = shadows;
@@ -57709,23 +55335,20 @@ var app = (function (child_process) {
 	        else if (shadows === true) {
 	            renderer.shadowMap.type = PCFSoftShadowMap;
 	        }
-	        // REVISION can be '{number}' or '{number}dev'
-	        const revision = Number.parseInt(REVISION.replace('dev', ''));
-	        const cm = ColorManagement;
-	        if (revision >= 150) {
-	            // since three.js r150 the color management prop is
-	            // called "enabled", but the types are not up to date :/
-	            cm.enabled = colorManagementEnabled;
-	        }
-	        else {
-	            cm.legacyMode = !colorManagementEnabled;
-	        }
-	        const anyRenderer = renderer;
+	    });
+	    watch([renderer, ctx.toneMapping], ([renderer, toneMapping]) => {
+	        if (!renderer)
+	            return;
+	        renderer.toneMapping = toneMapping;
+	    });
+	    watch([renderer, ctx.useLegacyLights], ([renderer, useLegacyLights]) => {
+	        if (!renderer)
+	            return;
 	        if (revision >= 150 && useLegacyLights) {
-	            anyRenderer.useLegacyLights = useLegacyLights;
+	            renderer.useLegacyLights = useLegacyLights;
 	        }
 	        else if (revision < 150) {
-	            anyRenderer.physicallyCorrectLights = !useLegacyLights;
+	            renderer.physicallyCorrectLights = !useLegacyLights;
 	        }
 	    });
 	    return {
@@ -57733,17 +55356,17 @@ var app = (function (child_process) {
 	    };
 	};
 
-	/* node_modules/@threlte/core/dist/Canvas.svelte generated by Svelte v3.59.2 */
+	/* node_modules/@threlte/core/dist/Canvas.svelte generated by Svelte v4.2.1 */
 	const file$1 = "node_modules/@threlte/core/dist/Canvas.svelte";
 
-	// (97:2) {#if initialized}
+	// (127:2) {#if initialized}
 	function create_if_block(ctx) {
 		let t;
 		let current;
 
 		t = new T$1({
 				props: {
-					is: /*contexts*/ ctx[3].ctx.scene,
+					is: /*contexts*/ ctx[0].ctx.scene,
 					$$slots: { default: [create_default_slot$2] },
 					$$scope: { ctx }
 				},
@@ -57760,6 +55383,7 @@ var app = (function (child_process) {
 			},
 			p: function update(ctx, dirty) {
 				const t_changes = {};
+				if (dirty & /*contexts*/ 1) t_changes.is = /*contexts*/ ctx[0].ctx.scene;
 
 				if (dirty & /*$$scope*/ 131072) {
 					t_changes.$$scope = { dirty, ctx };
@@ -57785,14 +55409,14 @@ var app = (function (child_process) {
 			block,
 			id: create_if_block.name,
 			type: "if",
-			source: "(97:2) {#if initialized}",
+			source: "(127:2) {#if initialized}",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (98:4) <T is={contexts.ctx.scene}>
+	// (128:4) <T is={contexts.ctx.scene}>
 	function create_default_slot$2(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[15].default;
@@ -57843,7 +55467,7 @@ var app = (function (child_process) {
 			block,
 			id: create_default_slot$2.name,
 			type: "slot",
-			source: "(98:4) <T is={contexts.ctx.scene}>",
+			source: "(128:4) <T is={contexts.ctx.scene}>",
 			ctx
 		});
 
@@ -57855,14 +55479,14 @@ var app = (function (child_process) {
 		let current;
 		let mounted;
 		let dispose;
-		let if_block = /*initialized*/ ctx[1] && create_if_block(ctx);
+		let if_block = /*initialized*/ ctx[2] && create_if_block(ctx);
 
 		const block = {
 			c: function create() {
 				canvas_1 = element("canvas");
 				if (if_block) if_block.c();
-				attr_dev(canvas_1, "class", "svelte-o3oskp");
-				add_location(canvas_1, file$1, 95, 0, 2674);
+				attr_dev(canvas_1, "class", "svelte-z3m47x");
+				add_location(canvas_1, file$1, 122, 0, 3810);
 			},
 			l: function claim(nodes) {
 				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -57874,16 +55498,16 @@ var app = (function (child_process) {
 				current = true;
 
 				if (!mounted) {
-					dispose = action_destroyer(/*parentSizeAction*/ ctx[2].call(null, canvas_1));
+					dispose = action_destroyer(/*parentSizeAction*/ ctx[3].call(null, canvas_1));
 					mounted = true;
 				}
 			},
 			p: function update(ctx, [dirty]) {
-				if (/*initialized*/ ctx[1]) {
+				if (/*initialized*/ ctx[2]) {
 					if (if_block) {
 						if_block.p(ctx, dirty);
 
-						if (dirty & /*initialized*/ 2) {
+						if (dirty & /*initialized*/ 4) {
 							transition_in(if_block, 1);
 						}
 					} else {
@@ -57912,7 +55536,10 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
-				if (detaching) detach_dev(canvas_1);
+				if (detaching) {
+					detach_dev(canvas_1);
+				}
+
 				if (if_block) if_block.d();
 				/*canvas_1_binding*/ ctx[16](null);
 				mounted = false;
@@ -57940,37 +55567,37 @@ var app = (function (child_process) {
 	function instance$2($$self, $$props, $$invalidate) {
 		let { $$slots: slots = {}, $$scope } = $$props;
 		validate_slots('Canvas', slots, ['default']);
-		let { dpr = browser ? window.devicePixelRatio : 1 } = $$props;
-		let { toneMapping = ACESFilmicToneMapping } = $$props;
+		let { colorManagementEnabled = true } = $$props;
 		let { colorSpace = 'srgb' } = $$props;
-		let { frameloop = 'demand' } = $$props;
 		let { debugFrameloop = false } = $$props;
+		let { dpr = browser ? window.devicePixelRatio : 1 } = $$props;
+		let { frameloop = 'demand' } = $$props;
+		let { rendererParameters = undefined } = $$props;
 		let { shadows = PCFSoftShadowMap } = $$props;
 		let { size = undefined } = $$props;
-		let { rendererParameters = undefined } = $$props;
-		let { colorManagementEnabled = true } = $$props;
-		let { useLegacyLights = true } = $$props;
+		let { toneMapping = ACESFilmicToneMapping } = $$props;
+		let { useLegacyLights = revision >= 155 ? false : true } = $$props;
 		let canvas;
 		let initialized = false;
 
 		// user size as a store
-		const userSize = writable$1(size);
+		const userSize = writable(size);
 
 		// in case the user didn't define a fixed size, use the parent elements size
 		const { parentSize, parentSizeAction } = useParentSize();
 
 		// creating and setting the contexts
 		const contexts = createContexts({
-			colorSpace,
-			toneMapping,
-			dpr,
-			userSize,
-			parentSize,
-			debugFrameloop,
-			frameloop,
-			shadows,
 			colorManagementEnabled,
-			useLegacyLights
+			colorSpace,
+			debugFrameloop,
+			dpr,
+			frameloop,
+			parentSize,
+			shadows,
+			toneMapping,
+			useLegacyLights,
+			userSize
 		});
 
 		// create cache context for caching assets
@@ -57992,7 +55619,7 @@ var app = (function (child_process) {
 		onMount(() => {
 			createRenderer(canvas, rendererParameters);
 			startFrameloop(contexts.ctx, contexts.internalCtx);
-			$$invalidate(1, initialized = true);
+			$$invalidate(2, initialized = true);
 		});
 
 		onDestroy(() => {
@@ -58003,15 +55630,15 @@ var app = (function (child_process) {
 		});
 
 		const writable_props = [
-			'dpr',
-			'toneMapping',
+			'colorManagementEnabled',
 			'colorSpace',
-			'frameloop',
 			'debugFrameloop',
+			'dpr',
+			'frameloop',
+			'rendererParameters',
 			'shadows',
 			'size',
-			'rendererParameters',
-			'colorManagementEnabled',
+			'toneMapping',
 			'useLegacyLights'
 		];
 
@@ -58022,20 +55649,20 @@ var app = (function (child_process) {
 		function canvas_1_binding($$value) {
 			binding_callbacks[$$value ? 'unshift' : 'push'](() => {
 				canvas = $$value;
-				$$invalidate(0, canvas);
+				$$invalidate(1, canvas);
 			});
 		}
 
 		$$self.$$set = $$props => {
-			if ('dpr' in $$props) $$invalidate(4, dpr = $$props.dpr);
-			if ('toneMapping' in $$props) $$invalidate(5, toneMapping = $$props.toneMapping);
-			if ('colorSpace' in $$props) $$invalidate(6, colorSpace = $$props.colorSpace);
-			if ('frameloop' in $$props) $$invalidate(7, frameloop = $$props.frameloop);
-			if ('debugFrameloop' in $$props) $$invalidate(8, debugFrameloop = $$props.debugFrameloop);
-			if ('shadows' in $$props) $$invalidate(9, shadows = $$props.shadows);
-			if ('size' in $$props) $$invalidate(10, size = $$props.size);
-			if ('rendererParameters' in $$props) $$invalidate(11, rendererParameters = $$props.rendererParameters);
-			if ('colorManagementEnabled' in $$props) $$invalidate(12, colorManagementEnabled = $$props.colorManagementEnabled);
+			if ('colorManagementEnabled' in $$props) $$invalidate(4, colorManagementEnabled = $$props.colorManagementEnabled);
+			if ('colorSpace' in $$props) $$invalidate(5, colorSpace = $$props.colorSpace);
+			if ('debugFrameloop' in $$props) $$invalidate(6, debugFrameloop = $$props.debugFrameloop);
+			if ('dpr' in $$props) $$invalidate(7, dpr = $$props.dpr);
+			if ('frameloop' in $$props) $$invalidate(8, frameloop = $$props.frameloop);
+			if ('rendererParameters' in $$props) $$invalidate(9, rendererParameters = $$props.rendererParameters);
+			if ('shadows' in $$props) $$invalidate(10, shadows = $$props.shadows);
+			if ('size' in $$props) $$invalidate(11, size = $$props.size);
+			if ('toneMapping' in $$props) $$invalidate(12, toneMapping = $$props.toneMapping);
 			if ('useLegacyLights' in $$props) $$invalidate(13, useLegacyLights = $$props.useLegacyLights);
 			if ('$$scope' in $$props) $$invalidate(17, $$scope = $$props.$$scope);
 		};
@@ -58045,26 +55672,27 @@ var app = (function (child_process) {
 			invalidateGlobally,
 			onDestroy,
 			onMount,
-			writable: writable$1,
+			writable,
 			ACESFilmicToneMapping,
 			PCFSoftShadowMap,
 			T: T$1,
 			useParentSize,
 			browser,
+			revision,
 			createCache,
 			createContexts,
 			setDefaultCameraAspectOnSizeChange,
 			startFrameloop,
 			useRenderer,
-			dpr,
-			toneMapping,
+			colorManagementEnabled,
 			colorSpace,
-			frameloop,
 			debugFrameloop,
+			dpr,
+			frameloop,
+			rendererParameters,
 			shadows,
 			size,
-			rendererParameters,
-			colorManagementEnabled,
+			toneMapping,
 			useLegacyLights,
 			canvas,
 			initialized,
@@ -58077,18 +55705,18 @@ var app = (function (child_process) {
 		});
 
 		$$self.$inject_state = $$props => {
-			if ('dpr' in $$props) $$invalidate(4, dpr = $$props.dpr);
-			if ('toneMapping' in $$props) $$invalidate(5, toneMapping = $$props.toneMapping);
-			if ('colorSpace' in $$props) $$invalidate(6, colorSpace = $$props.colorSpace);
-			if ('frameloop' in $$props) $$invalidate(7, frameloop = $$props.frameloop);
-			if ('debugFrameloop' in $$props) $$invalidate(8, debugFrameloop = $$props.debugFrameloop);
-			if ('shadows' in $$props) $$invalidate(9, shadows = $$props.shadows);
-			if ('size' in $$props) $$invalidate(10, size = $$props.size);
-			if ('rendererParameters' in $$props) $$invalidate(11, rendererParameters = $$props.rendererParameters);
-			if ('colorManagementEnabled' in $$props) $$invalidate(12, colorManagementEnabled = $$props.colorManagementEnabled);
+			if ('colorManagementEnabled' in $$props) $$invalidate(4, colorManagementEnabled = $$props.colorManagementEnabled);
+			if ('colorSpace' in $$props) $$invalidate(5, colorSpace = $$props.colorSpace);
+			if ('debugFrameloop' in $$props) $$invalidate(6, debugFrameloop = $$props.debugFrameloop);
+			if ('dpr' in $$props) $$invalidate(7, dpr = $$props.dpr);
+			if ('frameloop' in $$props) $$invalidate(8, frameloop = $$props.frameloop);
+			if ('rendererParameters' in $$props) $$invalidate(9, rendererParameters = $$props.rendererParameters);
+			if ('shadows' in $$props) $$invalidate(10, shadows = $$props.shadows);
+			if ('size' in $$props) $$invalidate(11, size = $$props.size);
+			if ('toneMapping' in $$props) $$invalidate(12, toneMapping = $$props.toneMapping);
 			if ('useLegacyLights' in $$props) $$invalidate(13, useLegacyLights = $$props.useLegacyLights);
-			if ('canvas' in $$props) $$invalidate(0, canvas = $$props.canvas);
-			if ('initialized' in $$props) $$invalidate(1, initialized = $$props.initialized);
+			if ('canvas' in $$props) $$invalidate(1, canvas = $$props.canvas);
+			if ('initialized' in $$props) $$invalidate(2, initialized = $$props.initialized);
 		};
 
 		if ($$props && "$$inject" in $$props) {
@@ -58096,25 +55724,49 @@ var app = (function (child_process) {
 		}
 
 		$$self.$$.update = () => {
-			if ($$self.$$.dirty & /*size*/ 1024) {
+			if ($$self.$$.dirty & /*size*/ 2048) {
 				userSize.set(size);
+			}
+
+			if ($$self.$$.dirty & /*debugFrameloop*/ 64) {
+				$$invalidate(0, contexts.internalCtx.debugFrameloop = debugFrameloop, contexts);
+			}
+
+			if ($$self.$$.dirty & /*contexts, colorSpace*/ 33) {
+				contexts.ctx.colorSpace.set(colorSpace);
+			}
+
+			if ($$self.$$.dirty & /*contexts, dpr*/ 129) {
+				contexts.ctx.dpr.set(dpr);
+			}
+
+			if ($$self.$$.dirty & /*contexts, frameloop*/ 257) {
+				contexts.ctx.frameloop.set(frameloop);
+			}
+
+			if ($$self.$$.dirty & /*contexts, shadows*/ 1025) {
+				contexts.ctx.shadows.set(shadows);
+			}
+
+			if ($$self.$$.dirty & /*contexts, toneMapping*/ 4097) {
+				contexts.ctx.toneMapping.set(toneMapping);
 			}
 		};
 
 		return [
+			contexts,
 			canvas,
 			initialized,
 			parentSizeAction,
-			contexts,
-			dpr,
-			toneMapping,
+			colorManagementEnabled,
 			colorSpace,
-			frameloop,
 			debugFrameloop,
+			dpr,
+			frameloop,
+			rendererParameters,
 			shadows,
 			size,
-			rendererParameters,
-			colorManagementEnabled,
+			toneMapping,
 			useLegacyLights,
 			ctx,
 			slots,
@@ -58128,15 +55780,15 @@ var app = (function (child_process) {
 			super(options);
 
 			init(this, options, instance$2, create_fragment$2, safe_not_equal, {
-				dpr: 4,
-				toneMapping: 5,
-				colorSpace: 6,
-				frameloop: 7,
-				debugFrameloop: 8,
-				shadows: 9,
-				size: 10,
-				rendererParameters: 11,
-				colorManagementEnabled: 12,
+				colorManagementEnabled: 4,
+				colorSpace: 5,
+				debugFrameloop: 6,
+				dpr: 7,
+				frameloop: 8,
+				rendererParameters: 9,
+				shadows: 10,
+				size: 11,
+				toneMapping: 12,
 				useLegacyLights: 13,
 				ctx: 14
 			});
@@ -58149,19 +55801,11 @@ var app = (function (child_process) {
 			});
 		}
 
-		get dpr() {
+		get colorManagementEnabled() {
 			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
-		set dpr(value) {
-			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-		}
-
-		get toneMapping() {
-			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-		}
-
-		set toneMapping(value) {
+		set colorManagementEnabled(value) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
@@ -58173,6 +55817,22 @@ var app = (function (child_process) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
+		get debugFrameloop() {
+			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		set debugFrameloop(value) {
+			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		get dpr() {
+			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		set dpr(value) {
+			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
 		get frameloop() {
 			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
@@ -58181,11 +55841,11 @@ var app = (function (child_process) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
-		get debugFrameloop() {
+		get rendererParameters() {
 			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
-		set debugFrameloop(value) {
+		set rendererParameters(value) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
@@ -58205,19 +55865,11 @@ var app = (function (child_process) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
-		get rendererParameters() {
+		get toneMapping() {
 			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
-		set rendererParameters(value) {
-			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-		}
-
-		get colorManagementEnabled() {
-			throw new Error("<Canvas>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
-		}
-
-		set colorManagementEnabled(value) {
+		set toneMapping(value) {
 			throw new Error("<Canvas>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
 
@@ -58312,15 +55964,18 @@ var app = (function (child_process) {
 	            started: readable(false)
 	        };
 	    }
-	    const invalidate = options?.invalidate ?? true;
 	    const renderCtx = getContext('threlte-internal-context');
+	    if (renderCtx === undefined) {
+	        throw new Error('No Threlte context found, are you using this hook inside of <Canvas>?');
+	    }
+	    const invalidate = options?.invalidate ?? true;
 	    const handler = {
 	        fn,
 	        order: options?.order,
 	        debugFrameloopMessage: options?.debugFrameloopMessage,
 	        invalidate
 	    };
-	    const started = writable$1(false);
+	    const started = writable(false);
 	    const stop = () => {
 	        if (invalidate) {
 	            renderCtx.autoFrameHandlers.delete(handler);
@@ -58357,118 +56012,146 @@ var app = (function (child_process) {
 	    };
 	};
 
+	/**
+	 * @param {any} obj
+	 * @returns {boolean}
+	 */
 	function is_date(obj) {
-	    return Object.prototype.toString.call(obj) === '[object Date]';
+		return Object.prototype.toString.call(obj) === '[object Date]';
 	}
 
+	/**
+	 * @template T
+	 * @param {import('./private.js').TickContext<T>} ctx
+	 * @param {T} last_value
+	 * @param {T} current_value
+	 * @param {T} target_value
+	 * @returns {T}
+	 */
 	function tick_spring(ctx, last_value, current_value, target_value) {
-	    if (typeof current_value === 'number' || is_date(current_value)) {
-	        // @ts-ignore
-	        const delta = target_value - current_value;
-	        // @ts-ignore
-	        const velocity = (current_value - last_value) / (ctx.dt || 1 / 60); // guard div by 0
-	        const spring = ctx.opts.stiffness * delta;
-	        const damper = ctx.opts.damping * velocity;
-	        const acceleration = (spring - damper) * ctx.inv_mass;
-	        const d = (velocity + acceleration) * ctx.dt;
-	        if (Math.abs(d) < ctx.opts.precision && Math.abs(delta) < ctx.opts.precision) {
-	            return target_value; // settled
-	        }
-	        else {
-	            ctx.settled = false; // signal loop to keep ticking
-	            // @ts-ignore
-	            return is_date(current_value) ?
-	                new Date(current_value.getTime() + d) : current_value + d;
-	        }
-	    }
-	    else if (Array.isArray(current_value)) {
-	        // @ts-ignore
-	        return current_value.map((_, i) => tick_spring(ctx, last_value[i], current_value[i], target_value[i]));
-	    }
-	    else if (typeof current_value === 'object') {
-	        const next_value = {};
-	        for (const k in current_value) {
-	            // @ts-ignore
-	            next_value[k] = tick_spring(ctx, last_value[k], current_value[k], target_value[k]);
-	        }
-	        // @ts-ignore
-	        return next_value;
-	    }
-	    else {
-	        throw new Error(`Cannot spring ${typeof current_value} values`);
-	    }
-	}
-	function spring(value, opts = {}) {
-	    const store = writable$1(value);
-	    const { stiffness = 0.15, damping = 0.8, precision = 0.01 } = opts;
-	    let last_time;
-	    let task;
-	    let current_token;
-	    let last_value = value;
-	    let target_value = value;
-	    let inv_mass = 1;
-	    let inv_mass_recovery_rate = 0;
-	    let cancel_task = false;
-	    function set(new_value, opts = {}) {
-	        target_value = new_value;
-	        const token = current_token = {};
-	        if (value == null || opts.hard || (spring.stiffness >= 1 && spring.damping >= 1)) {
-	            cancel_task = true; // cancel any running animation
-	            last_time = now$1();
-	            last_value = new_value;
-	            store.set(value = target_value);
-	            return Promise.resolve();
-	        }
-	        else if (opts.soft) {
-	            const rate = opts.soft === true ? .5 : +opts.soft;
-	            inv_mass_recovery_rate = 1 / (rate * 60);
-	            inv_mass = 0; // infinite mass, unaffected by spring forces
-	        }
-	        if (!task) {
-	            last_time = now$1();
-	            cancel_task = false;
-	            task = loop(now => {
-	                if (cancel_task) {
-	                    cancel_task = false;
-	                    task = null;
-	                    return false;
-	                }
-	                inv_mass = Math.min(inv_mass + inv_mass_recovery_rate, 1);
-	                const ctx = {
-	                    inv_mass,
-	                    opts: spring,
-	                    settled: true,
-	                    dt: (now - last_time) * 60 / 1000
-	                };
-	                const next_value = tick_spring(ctx, last_value, value, target_value);
-	                last_time = now;
-	                last_value = value;
-	                store.set(value = next_value);
-	                if (ctx.settled) {
-	                    task = null;
-	                }
-	                return !ctx.settled;
-	            });
-	        }
-	        return new Promise(fulfil => {
-	            task.promise.then(() => {
-	                if (token === current_token)
-	                    fulfil();
-	            });
-	        });
-	    }
-	    const spring = {
-	        set,
-	        update: (fn, opts) => set(fn(target_value, value), opts),
-	        subscribe: store.subscribe,
-	        stiffness,
-	        damping,
-	        precision
-	    };
-	    return spring;
+		if (typeof current_value === 'number' || is_date(current_value)) {
+			// @ts-ignore
+			const delta = target_value - current_value;
+			// @ts-ignore
+			const velocity = (current_value - last_value) / (ctx.dt || 1 / 60); // guard div by 0
+			const spring = ctx.opts.stiffness * delta;
+			const damper = ctx.opts.damping * velocity;
+			const acceleration = (spring - damper) * ctx.inv_mass;
+			const d = (velocity + acceleration) * ctx.dt;
+			if (Math.abs(d) < ctx.opts.precision && Math.abs(delta) < ctx.opts.precision) {
+				return target_value; // settled
+			} else {
+				ctx.settled = false; // signal loop to keep ticking
+				// @ts-ignore
+				return is_date(current_value) ? new Date(current_value.getTime() + d) : current_value + d;
+			}
+		} else if (Array.isArray(current_value)) {
+			// @ts-ignore
+			return current_value.map((_, i) =>
+				tick_spring(ctx, last_value[i], current_value[i], target_value[i])
+			);
+		} else if (typeof current_value === 'object') {
+			const next_value = {};
+			for (const k in current_value) {
+				// @ts-ignore
+				next_value[k] = tick_spring(ctx, last_value[k], current_value[k], target_value[k]);
+			}
+			// @ts-ignore
+			return next_value;
+		} else {
+			throw new Error(`Cannot spring ${typeof current_value} values`);
+		}
 	}
 
-	/* webview/Scene.svelte generated by Svelte v3.59.2 */
+	/**
+	 * The spring function in Svelte creates a store whose value is animated, with a motion that simulates the behavior of a spring. This means when the value changes, instead of transitioning at a steady rate, it "bounces" like a spring would, depending on the physics parameters provided. This adds a level of realism to the transitions and can enhance the user experience.
+	 *
+	 * https://svelte.dev/docs/svelte-motion#spring
+	 * @template [T=any]
+	 * @param {T} [value]
+	 * @param {import('./private.js').SpringOpts} [opts]
+	 * @returns {import('./public.js').Spring<T>}
+	 */
+	function spring(value, opts = {}) {
+		const store = writable(value);
+		const { stiffness = 0.15, damping = 0.8, precision = 0.01 } = opts;
+		/** @type {number} */
+		let last_time;
+		/** @type {import('../internal/private.js').Task} */
+		let task;
+		/** @type {object} */
+		let current_token;
+		/** @type {T} */
+		let last_value = value;
+		/** @type {T} */
+		let target_value = value;
+		let inv_mass = 1;
+		let inv_mass_recovery_rate = 0;
+		let cancel_task = false;
+		/**
+		 * @param {T} new_value
+		 * @param {import('./private.js').SpringUpdateOpts} opts
+		 * @returns {Promise<void>}
+		 */
+		function set(new_value, opts = {}) {
+			target_value = new_value;
+			const token = (current_token = {});
+			if (value == null || opts.hard || (spring.stiffness >= 1 && spring.damping >= 1)) {
+				cancel_task = true; // cancel any running animation
+				last_time = now$1();
+				last_value = new_value;
+				store.set((value = target_value));
+				return Promise.resolve();
+			} else if (opts.soft) {
+				const rate = opts.soft === true ? 0.5 : +opts.soft;
+				inv_mass_recovery_rate = 1 / (rate * 60);
+				inv_mass = 0; // infinite mass, unaffected by spring forces
+			}
+			if (!task) {
+				last_time = now$1();
+				cancel_task = false;
+				task = loop((now) => {
+					if (cancel_task) {
+						cancel_task = false;
+						task = null;
+						return false;
+					}
+					inv_mass = Math.min(inv_mass + inv_mass_recovery_rate, 1);
+					const ctx = {
+						inv_mass,
+						opts: spring,
+						settled: true,
+						dt: ((now - last_time) * 60) / 1000
+					};
+					const next_value = tick_spring(ctx, last_value, value, target_value);
+					last_time = now;
+					last_value = value;
+					store.set((value = next_value));
+					if (ctx.settled) {
+						task = null;
+					}
+					return !ctx.settled;
+				});
+			}
+			return new Promise((fulfil) => {
+				task.promise.then(() => {
+					if (token === current_token) fulfil();
+				});
+			});
+		}
+		/** @type {import('./public.js').Spring<T>} */
+		const spring = {
+			set,
+			update: (fn, opts) => set(fn(target_value, value), opts),
+			subscribe: store.subscribe,
+			stiffness,
+			damping,
+			precision
+		};
+		return spring;
+	}
+
+	/* webview/Scene.svelte generated by Svelte v4.2.1 */
 
 	// (39:0) <T.Mesh   rotation.y={rotation}   position.y={1}   scale={$scale}   on:pointerenter={() => scale.set(1.5)}   on:pointerleave={() => scale.set(1)}   castShadow >
 	function create_default_slot_2(ctx) {
@@ -58512,8 +56195,11 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t);
+				}
+
 				destroy_component(t_boxgeometry, detaching);
-				if (detaching) detach_dev(t);
 				destroy_component(t_meshstandardmaterial, detaching);
 			}
 		};
@@ -58571,8 +56257,11 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t);
+				}
+
 				destroy_component(t_spheregeometry, detaching);
-				if (detaching) detach_dev(t);
 				destroy_component(t_meshstandardmaterial, detaching);
 			}
 		};
@@ -58626,8 +56315,11 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t);
+				}
+
 				destroy_component(t_circlegeometry, detaching);
-				if (detaching) detach_dev(t);
 				destroy_component(t_meshstandardmaterial, detaching);
 			}
 		};
@@ -58666,7 +56358,11 @@ var app = (function (child_process) {
 		t_perspectivecamera.$on("create", create_handler);
 
 		t_directionallight = new T.DirectionalLight({
-				props: { position: [0, 10, 10], castShadow: true },
+				props: {
+					position: [0, 10, 10],
+					castShadow: true,
+					intensity: 3
+				},
 				$$inline: true
 			});
 
@@ -58776,14 +56472,17 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t0);
+					detach_dev(t1);
+					detach_dev(t2);
+					detach_dev(t3);
+				}
+
 				destroy_component(t_perspectivecamera, detaching);
-				if (detaching) detach_dev(t0);
 				destroy_component(t_directionallight, detaching);
-				if (detaching) detach_dev(t1);
 				destroy_component(t_mesh0, detaching);
-				if (detaching) detach_dev(t2);
 				destroy_component(t_mesh1, detaching);
-				if (detaching) detach_dev(t3);
 				destroy_component(t_mesh2, detaching);
 			}
 		};
@@ -58879,7 +56578,7 @@ var app = (function (child_process) {
 		}
 	}
 
-	/* webview/App.svelte generated by Svelte v3.59.2 */
+	/* webview/App.svelte generated by Svelte v4.2.1 */
 	const file = "webview/App.svelte";
 
 	function get_each_context(ctx, list, i) {
@@ -58888,7 +56587,7 @@ var app = (function (child_process) {
 		return child_ctx;
 	}
 
-	// (29:4) <Canvas>
+	// (28:4) <Canvas>
 	function create_default_slot(ctx) {
 		let scene;
 		let current;
@@ -58920,14 +56619,14 @@ var app = (function (child_process) {
 			block,
 			id: create_default_slot.name,
 			type: "slot",
-			source: "(29:4) <Canvas>",
+			source: "(28:4) <Canvas>",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (36:9) {#each logData as str}
+	// (35:9) {#each logData as str}
 	function create_each_block(ctx) {
 		let t0_value = /*str*/ ctx[3] + "";
 		let t0;
@@ -58939,7 +56638,7 @@ var app = (function (child_process) {
 				t0 = text(t0_value);
 				t1 = space();
 				br = element("br");
-				add_location(br, file, 35, 38, 648);
+				add_location(br, file, 34, 38, 609);
 			},
 			m: function mount(target, anchor) {
 				insert_dev(target, t0, anchor);
@@ -58950,9 +56649,11 @@ var app = (function (child_process) {
 				if (dirty & /*logData*/ 4 && t0_value !== (t0_value = /*str*/ ctx[3] + "")) set_data_dev(t0, t0_value);
 			},
 			d: function destroy(detaching) {
-				if (detaching) detach_dev(t0);
-				if (detaching) detach_dev(t1);
-				if (detaching) detach_dev(br);
+				if (detaching) {
+					detach_dev(t0);
+					detach_dev(t1);
+					detach_dev(br);
+				}
 			}
 		};
 
@@ -58960,7 +56661,7 @@ var app = (function (child_process) {
 			block,
 			id: create_each_block.name,
 			type: "each",
-			source: "(36:9) {#each logData as str}",
+			source: "(35:9) {#each logData as str}",
 			ctx
 		});
 
@@ -58986,8 +56687,7 @@ var app = (function (child_process) {
 				$$inline: true
 			});
 
-		let each_value = /*logData*/ ctx[2];
-		validate_each_argument(each_value);
+		let each_value = ensure_array_like_dev(/*logData*/ ctx[2]);
 		let each_blocks = [];
 
 		for (let i = 0; i < each_value.length; i += 1) {
@@ -59008,10 +56708,10 @@ var app = (function (child_process) {
 					each_blocks[i].c();
 				}
 
-				attr_dev(div, "class", "container svelte-7r4oey");
-				add_location(div, file, 27, 0, 490);
-				attr_dev(code, "class", "svelte-7r4oey");
-				add_location(code, file, 33, 0, 567);
+				attr_dev(div, "class", "container svelte-10ibh3r");
+				add_location(div, file, 26, 0, 451);
+				attr_dev(code, "class", "svelte-10ibh3r");
+				add_location(code, file, 32, 0, 528);
 			},
 			l: function claim(nodes) {
 				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -59044,8 +56744,7 @@ var app = (function (child_process) {
 				if ((!current || dirty & /*$media*/ 2) && t2_value !== (t2_value = JSON.stringify(/*$media*/ ctx[1]) + "")) set_data_dev(t2, t2_value);
 
 				if (dirty & /*logData*/ 4) {
-					each_value = /*logData*/ ctx[2];
-					validate_each_argument(each_value);
+					each_value = ensure_array_like_dev(/*logData*/ ctx[2]);
 					let i;
 
 					for (i = 0; i < each_value.length; i += 1) {
@@ -59077,10 +56776,13 @@ var app = (function (child_process) {
 				current = false;
 			},
 			d: function destroy(detaching) {
-				if (detaching) detach_dev(div);
+				if (detaching) {
+					detach_dev(div);
+					detach_dev(t0);
+					detach_dev(code);
+				}
+
 				destroy_component(canvas);
-				if (detaching) detach_dev(t0);
-				if (detaching) detach_dev(code);
 				destroy_each(each_blocks, detaching);
 			}
 		};
@@ -59117,7 +56819,7 @@ var app = (function (child_process) {
 
 		onMount(() => {
 			return;
-		});
+		}); // exec($media);
 
 		$$self.$$.on_mount.push(function () {
 			if (media === undefined && !('media' in $$props || $$self.$$.bound[$$self.$$.props['media']])) {
@@ -59139,7 +56841,6 @@ var app = (function (child_process) {
 			Canvas,
 			T,
 			Scene,
-			exec: child_process.exec,
 			onMount,
 			media,
 			reload,
@@ -59165,7 +56866,7 @@ var app = (function (child_process) {
 		return [media, $media, logData];
 	}
 
-	let App$1 = class App extends SvelteComponentDev {
+	class App extends SvelteComponentDev {
 		constructor(options) {
 			super(options);
 			init(this, options, instance, create_fragment, safe_not_equal, { media: 0 });
@@ -59185,17 +56886,7 @@ var app = (function (child_process) {
 		set media(value) {
 			throw new Error("<App>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
 		}
-	};
-
-	var App$2 = /*#__PURE__*/Object.freeze({
-		__proto__: null,
-		default: App$1
-	});
-
-	var require$$1 = /*@__PURE__*/getAugmentedNamespace(App$2);
-
-	const { writable } = store;
-	const App = require$$1.default;
+	}
 
 	const media = writable({});
 
@@ -59204,23 +56895,17 @@ var app = (function (child_process) {
 		props: { media },
 	});
 
-	app$1.default = app;
-	// module.exports.dispatchMessage = (message) => { notifyMessageSubscribers(message); return "asdfHello"; };
-
-	// window.api.on("testMessage", (data) => {
-	//   console.log(`Received ${data} from main process`);
-	// });
-
 	window.addEventListener("DOMContentLoaded", () => {
 	    window.api.on("mediaChanged", (newMedia) => {
-			media.set(newMedia);
-
-			// To send a message back
-			// window.api.send("backTestMessage", "Hello from app.js");
+			if (newMedia.assets && newMedia.content) {
+				media.set(newMedia);
+			}
 	    });
 	});
 
-	return app$1;
+	exports.app = app;
 
-})(child_process);
+	return exports;
+
+})({});
 //# sourceMappingURL=bundle.js.map

@@ -1,7 +1,6 @@
 <script>
     import { Canvas, T } from "@threlte/core";
     import Scene from "./Scene.svelte";
-    import { exec } from "child_process";
     import { onMount } from "svelte";
 
     export let media;
@@ -21,7 +20,7 @@
             logData = [...logData, str];
         }
 
-        exec($media);
+        // exec($media);
     });
 </script>
 
@@ -47,6 +46,9 @@
     }
 
     code { 
+        position: absolute;
+        top: 1em;
+        left: 1em;
         color: white;
     }
 </style>

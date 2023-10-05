@@ -34,7 +34,7 @@
   }}
 />
 
-<T.DirectionalLight position={[0, 10, 10]} castShadow />
+<T.DirectionalLight position={[0, 10, 10]} castShadow intensity={3} />
 
 <T.Mesh
   rotation.y={rotation}
