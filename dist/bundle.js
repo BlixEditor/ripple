@@ -217,6 +217,19 @@ var app = (function (exports) {
 		};
 	}
 
+	var global$1 = (typeof global !== "undefined" ? global :
+	  typeof self !== "undefined" ? self :
+	  typeof window !== "undefined" ? window : {});
+
+	/** @type {typeof globalThis} */
+	const globals =
+		typeof window !== 'undefined'
+			? window
+			: typeof globalThis !== 'undefined'
+			? globalThis
+			: // @ts-ignore Node typings have this
+			  global$1;
+
 	/**
 	 * @param {Node} target
 	 * @param {Node} node
@@ -1193,7 +1206,7 @@ var app = (function (exports) {
 	 * Copyright 2010-2023 Three.js Authors
 	 * SPDX-License-Identifier: MIT
 	 */
-	const REVISION = '155';
+	const REVISION = '156';
 
 	const MOUSE = { LEFT: 0, MIDDLE: 1, RIGHT: 2, ROTATE: 0, DOLLY: 1, PAN: 2 };
 	const TOUCH = { ROTATE: 0, PAN: 1, DOLLY_PAN: 2, DOLLY_ROTATE: 3 };
@@ -1317,6 +1330,8 @@ var app = (function (exports) {
 	const RGBA_ASTC_12x10_Format = 37820;
 	const RGBA_ASTC_12x12_Format = 37821;
 	const RGBA_BPTC_Format = 36492;
+	const RGB_BPTC_SIGNED_Format = 36494;
+	const RGB_BPTC_UNSIGNED_Format = 36495;
 	const RED_RGTC1_Format = 36283;
 	const SIGNED_RED_RGTC1_Format = 36284;
 	const RED_GREEN_RGTC2_Format = 36285;
@@ -1349,6 +1364,7 @@ var app = (function (exports) {
 	const SRGBColorSpace = 'srgb';
 	const LinearSRGBColorSpace = 'srgb-linear';
 	const DisplayP3ColorSpace = 'display-p3';
+	const LinearDisplayP3ColorSpace = 'display-p3-linear';
 
 	const ZeroStencilOp = 0;
 	const KeepStencilOp = 7680;
@@ -2109,8 +2125,8 @@ var app = (function (exports) {
 
 		roundToZero() {
 
-			this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
-			this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
+			this.x = Math.trunc( this.x );
+			this.y = Math.trunc( this.y );
 
 			return this;
 
@@ -2718,6 +2734,14 @@ var app = (function (exports) {
 
 	}
 
+	function createCanvasElement() {
+
+		const canvas = createElementNS( 'canvas' );
+		canvas.style.display = 'block';
+		return canvas;
+
+	}
+
 	const _cache = {};
 
 	function warnOnce( message ) {
@@ -3109,7 +3133,7 @@ var app = (function (exports) {
 
 	}
 
-	let textureId = 0;
+	let _textureId = 0;
 
 	class Texture extends EventDispatcher {
 
@@ -3119,7 +3143,7 @@ var app = (function (exports) {
 
 			this.isTexture = true;
 
-			Object.defineProperty( this, 'id', { value: textureId ++ } );
+			Object.defineProperty( this, 'id', { value: _textureId ++ } );
 
 			this.uuid = generateUUID();
 
@@ -3929,10 +3953,10 @@ var app = (function (exports) {
 
 		roundToZero() {
 
-			this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
-			this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
-			this.z = ( this.z < 0 ) ? Math.ceil( this.z ) : Math.floor( this.z );
-			this.w = ( this.w < 0 ) ? Math.ceil( this.w ) : Math.floor( this.w );
+			this.x = Math.trunc( this.x );
+			this.y = Math.trunc( this.y );
+			this.z = Math.trunc( this.z );
+			this.w = Math.trunc( this.w );
 
 			return this;
 
@@ -5440,9 +5464,9 @@ var app = (function (exports) {
 
 		roundToZero() {
 
-			this.x = ( this.x < 0 ) ? Math.ceil( this.x ) : Math.floor( this.x );
-			this.y = ( this.y < 0 ) ? Math.ceil( this.y ) : Math.floor( this.y );
-			this.z = ( this.z < 0 ) ? Math.ceil( this.z ) : Math.floor( this.z );
+			this.x = Math.trunc( this.x );
+			this.y = Math.trunc( this.y );
+			this.z = Math.trunc( this.z );
 
 			return this;
 
@@ -8672,20 +8696,7 @@ var app = (function (exports) {
 
 		clear() {
 
-			for ( let i = 0; i < this.children.length; i ++ ) {
-
-				const object = this.children[ i ];
-
-				object.parent = null;
-
-				object.dispatchEvent( _removedEvent );
-
-			}
-
-			this.children.length = 0;
-
-			return this;
-
+			return this.remove( ... this.children );
 
 		}
 
@@ -9576,7 +9587,7 @@ var app = (function (exports) {
 
 	}
 
-	let materialId = 0;
+	let _materialId = 0;
 
 	class Material extends EventDispatcher {
 
@@ -9586,7 +9597,7 @@ var app = (function (exports) {
 
 			this.isMaterial = true;
 
-			Object.defineProperty( this, 'id', { value: materialId ++ } );
+			Object.defineProperty( this, 'id', { value: _materialId ++ } );
 
 			this.uuid = generateUUID();
 
@@ -11555,7 +11566,7 @@ var app = (function (exports) {
 
 	}
 
-	let _id$1 = 0;
+	let _id$2 = 0;
 
 	const _m1 = /*@__PURE__*/ new Matrix4();
 	const _obj = /*@__PURE__*/ new Object3D();
@@ -11572,7 +11583,7 @@ var app = (function (exports) {
 
 			this.isBufferGeometry = true;
 
-			Object.defineProperty( this, 'id', { value: _id$1 ++ } );
+			Object.defineProperty( this, 'id', { value: _id$2 ++ } );
 
 			this.uuid = generateUUID();
 
@@ -12677,7 +12688,7 @@ var app = (function (exports) {
 
 			}
 
-			this.material = source.material;
+			this.material = Array.isArray( source.material ) ? source.material.slice() : source.material;
 			this.geometry = source.geometry;
 
 			return this;
@@ -14967,7 +14978,7 @@ var app = (function (exports) {
 
 	var logdepthbuf_vertex = "#ifdef USE_LOGDEPTHBUF\n\t#ifdef USE_LOGDEPTHBUF_EXT\n\t\tvFragDepth = 1.0 + gl_Position.w;\n\t\tvIsPerspective = float( isPerspectiveMatrix( projectionMatrix ) );\n\t#else\n\t\tif ( isPerspectiveMatrix( projectionMatrix ) ) {\n\t\t\tgl_Position.z = log2( max( EPSILON, gl_Position.w + 1.0 ) ) * logDepthBufFC - 1.0;\n\t\t\tgl_Position.z *= gl_Position.w;\n\t\t}\n\t#endif\n#endif";
 
-	var map_fragment = "#ifdef USE_MAP\n\tdiffuseColor *= texture2D( map, vMapUv );\n#endif";
+	var map_fragment = "#ifdef USE_MAP\n\tvec4 sampledDiffuseColor = texture2D( map, vMapUv );\n\t#ifdef DECODE_VIDEO_TEXTURE\n\t\tsampledDiffuseColor = vec4( mix( pow( sampledDiffuseColor.rgb * 0.9478672986 + vec3( 0.0521327014 ), vec3( 2.4 ) ), sampledDiffuseColor.rgb * 0.0773993808, vec3( lessThanEqual( sampledDiffuseColor.rgb, vec3( 0.04045 ) ) ) ), sampledDiffuseColor.w );\n\t\n\t#endif\n\tdiffuseColor *= sampledDiffuseColor;\n#endif";
 
 	var map_pars_fragment = "#ifdef USE_MAP\n\tuniform sampler2D map;\n#endif";
 
@@ -15061,7 +15072,7 @@ var app = (function (exports) {
 
 	const vertex$h = "varying vec2 vUv;\nuniform mat3 uvTransform;\nvoid main() {\n\tvUv = ( uvTransform * vec3( uv, 1 ) ).xy;\n\tgl_Position = vec4( position.xy, 1.0, 1.0 );\n}";
 
-	const fragment$h = "uniform sampler2D t2D;\nuniform float backgroundIntensity;\nvarying vec2 vUv;\nvoid main() {\n\tvec4 texColor = texture2D( t2D, vUv );\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
+	const fragment$h = "uniform sampler2D t2D;\nuniform float backgroundIntensity;\nvarying vec2 vUv;\nvoid main() {\n\tvec4 texColor = texture2D( t2D, vUv );\n\t#ifdef DECODE_VIDEO_TEXTURE\n\t\ttexColor = vec4( mix( pow( texColor.rgb * 0.9478672986 + vec3( 0.0521327014 ), vec3( 2.4 ) ), texColor.rgb * 0.0773993808, vec3( lessThanEqual( texColor.rgb, vec3( 0.04045 ) ) ) ), texColor.w );\n\t#endif\n\ttexColor.rgb *= backgroundIntensity;\n\tgl_FragColor = texColor;\n\t#include <tonemapping_fragment>\n\t#include <colorspace_fragment>\n}";
 
 	const vertex$g = "varying vec3 vWorldDirection;\n#include <common>\nvoid main() {\n\tvWorldDirection = transformDirection( position, modelMatrix );\n\t#include <begin_vertex>\n\t#include <project_vertex>\n\tgl_Position.z = gl_Position.w;\n}";
 
@@ -15881,24 +15892,15 @@ var app = (function (exports) {
 
 			}
 
-			const xr = renderer.xr;
-			const environmentBlendMode = xr.getEnvironmentBlendMode();
+			const environmentBlendMode = renderer.xr.getEnvironmentBlendMode();
 
-			switch ( environmentBlendMode ) {
+			if ( environmentBlendMode === 'additive' ) {
 
-				case 'opaque':
-					forceClear = true;
-					break;
+				state.buffers.color.setClear( 0, 0, 0, 1, premultipliedAlpha );
 
-				case 'additive':
-					state.buffers.color.setClear( 0, 0, 0, 1, premultipliedAlpha );
-					forceClear = true;
-					break;
+			} else if ( environmentBlendMode === 'alpha-blend' ) {
 
-				case 'alpha-blend':
-					state.buffers.color.setClear( 0, 0, 0, 0, premultipliedAlpha );
-					forceClear = true;
-					break;
+				state.buffers.color.setClear( 0, 0, 0, 0, premultipliedAlpha );
 
 			}
 
@@ -21013,6 +21015,8 @@ var app = (function (exports) {
 
 				parameters.useLegacyLights ? '#define LEGACY_LIGHTS' : '',
 
+				parameters.decodeVideoTexture ? '#define DECODE_VIDEO_TEXTURE' : '',
+
 				parameters.logarithmicDepthBuffer ? '#define USE_LOGDEPTHBUF' : '',
 				( parameters.logarithmicDepthBuffer && parameters.rendererExtensionFragDepth ) ? '#define USE_LOGDEPTHBUF_EXT' : '',
 
@@ -21247,7 +21251,7 @@ var app = (function (exports) {
 
 	}
 
-	let _id = 0;
+	let _id$1 = 0;
 
 	class WebGLShaderCache {
 
@@ -21361,7 +21365,7 @@ var app = (function (exports) {
 
 		constructor( code ) {
 
-			this.id = _id ++;
+			this.id = _id$1 ++;
 
 			this.code = code;
 			this.usedTimes = 0;
@@ -21700,6 +21704,8 @@ var app = (function (exports) {
 				toneMapping: toneMapping,
 				useLegacyLights: renderer._useLegacyLights,
 
+				decodeVideoTexture: HAS_MAP && ( material.map.isVideoTexture === true ) && ( material.map.colorSpace === SRGBColorSpace ),
+
 				premultipliedAlpha: material.premultipliedAlpha,
 
 				doubleSided: material.side === DoubleSide,
@@ -21901,6 +21907,8 @@ var app = (function (exports) {
 				_programLayers.enable( 17 );
 			if ( parameters.pointsUvs )
 				_programLayers.enable( 18 );
+			if ( parameters.decodeVideoTexture )
+				_programLayers.enable( 19 );
 
 			array.push( _programLayers.mask );
 
@@ -25461,7 +25469,7 @@ var app = (function (exports) {
 					glFormat = utils.convert( texture.format, texture.colorSpace );
 
 				let glType = utils.convert( texture.type ),
-					glInternalFormat = getInternalFormat( texture.internalFormat, glFormat, glType, texture.colorSpace );
+					glInternalFormat = getInternalFormat( texture.internalFormat, glFormat, glType, texture.colorSpace, texture.isVideoTexture );
 
 				setTextureParameters( textureType, texture, supportsMips );
 
@@ -26740,13 +26748,13 @@ var app = (function (exports) {
 			const format = texture.format;
 			const type = texture.type;
 
-			if ( texture.isCompressedTexture === true || texture.format === _SRGBAFormat ) return image;
+			if ( texture.isCompressedTexture === true || texture.isVideoTexture === true || texture.format === _SRGBAFormat ) return image;
 
 			if ( colorSpace !== LinearSRGBColorSpace && colorSpace !== NoColorSpace ) {
 
 				// sRGB
 
-				if ( colorSpace === SRGBColorSpace ) {
+				if ( colorSpace === SRGBColorSpace || colorSpace === DisplayP3ColorSpace ) {
 
 					if ( isWebGL2 === false ) {
 
@@ -26812,6 +26820,9 @@ var app = (function (exports) {
 
 	}
 
+	const LinearTransferFunction = 0;
+	const SRGBTransferFunction = 1;
+
 	function WebGLUtils( gl, extensions, capabilities ) {
 
 		const isWebGL2 = capabilities.isWebGL2;
@@ -26819,6 +26830,8 @@ var app = (function (exports) {
 		function convert( p, colorSpace = NoColorSpace ) {
 
 			let extension;
+
+			const transferFunction = ( colorSpace === SRGBColorSpace || colorSpace === DisplayP3ColorSpace ) ? SRGBTransferFunction : LinearTransferFunction;
 
 			if ( p === UnsignedByteType ) return gl.UNSIGNED_BYTE;
 			if ( p === UnsignedShort4444Type ) return gl.UNSIGNED_SHORT_4_4_4_4;
@@ -26886,7 +26899,7 @@ var app = (function (exports) {
 
 			if ( p === RGB_S3TC_DXT1_Format || p === RGBA_S3TC_DXT1_Format || p === RGBA_S3TC_DXT3_Format || p === RGBA_S3TC_DXT5_Format ) {
 
-				if ( colorSpace === SRGBColorSpace ) {
+				if ( transferFunction === SRGBTransferFunction ) {
 
 					extension = extensions.get( 'WEBGL_compressed_texture_s3tc_srgb' );
 
@@ -26971,8 +26984,8 @@ var app = (function (exports) {
 
 				if ( extension !== null ) {
 
-					if ( p === RGB_ETC2_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ETC2 : extension.COMPRESSED_RGB8_ETC2;
-					if ( p === RGBA_ETC2_EAC_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC : extension.COMPRESSED_RGBA8_ETC2_EAC;
+					if ( p === RGB_ETC2_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ETC2 : extension.COMPRESSED_RGB8_ETC2;
+					if ( p === RGBA_ETC2_EAC_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC : extension.COMPRESSED_RGBA8_ETC2_EAC;
 
 				} else {
 
@@ -26994,20 +27007,20 @@ var app = (function (exports) {
 
 				if ( extension !== null ) {
 
-					if ( p === RGBA_ASTC_4x4_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR : extension.COMPRESSED_RGBA_ASTC_4x4_KHR;
-					if ( p === RGBA_ASTC_5x4_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR : extension.COMPRESSED_RGBA_ASTC_5x4_KHR;
-					if ( p === RGBA_ASTC_5x5_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR : extension.COMPRESSED_RGBA_ASTC_5x5_KHR;
-					if ( p === RGBA_ASTC_6x5_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR : extension.COMPRESSED_RGBA_ASTC_6x5_KHR;
-					if ( p === RGBA_ASTC_6x6_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR : extension.COMPRESSED_RGBA_ASTC_6x6_KHR;
-					if ( p === RGBA_ASTC_8x5_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR : extension.COMPRESSED_RGBA_ASTC_8x5_KHR;
-					if ( p === RGBA_ASTC_8x6_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR : extension.COMPRESSED_RGBA_ASTC_8x6_KHR;
-					if ( p === RGBA_ASTC_8x8_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR : extension.COMPRESSED_RGBA_ASTC_8x8_KHR;
-					if ( p === RGBA_ASTC_10x5_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR : extension.COMPRESSED_RGBA_ASTC_10x5_KHR;
-					if ( p === RGBA_ASTC_10x6_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR : extension.COMPRESSED_RGBA_ASTC_10x6_KHR;
-					if ( p === RGBA_ASTC_10x8_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR : extension.COMPRESSED_RGBA_ASTC_10x8_KHR;
-					if ( p === RGBA_ASTC_10x10_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR : extension.COMPRESSED_RGBA_ASTC_10x10_KHR;
-					if ( p === RGBA_ASTC_12x10_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR : extension.COMPRESSED_RGBA_ASTC_12x10_KHR;
-					if ( p === RGBA_ASTC_12x12_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR : extension.COMPRESSED_RGBA_ASTC_12x12_KHR;
+					if ( p === RGBA_ASTC_4x4_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR : extension.COMPRESSED_RGBA_ASTC_4x4_KHR;
+					if ( p === RGBA_ASTC_5x4_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR : extension.COMPRESSED_RGBA_ASTC_5x4_KHR;
+					if ( p === RGBA_ASTC_5x5_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR : extension.COMPRESSED_RGBA_ASTC_5x5_KHR;
+					if ( p === RGBA_ASTC_6x5_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_6x5_KHR : extension.COMPRESSED_RGBA_ASTC_6x5_KHR;
+					if ( p === RGBA_ASTC_6x6_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_6x6_KHR : extension.COMPRESSED_RGBA_ASTC_6x6_KHR;
+					if ( p === RGBA_ASTC_8x5_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x5_KHR : extension.COMPRESSED_RGBA_ASTC_8x5_KHR;
+					if ( p === RGBA_ASTC_8x6_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x6_KHR : extension.COMPRESSED_RGBA_ASTC_8x6_KHR;
+					if ( p === RGBA_ASTC_8x8_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR : extension.COMPRESSED_RGBA_ASTC_8x8_KHR;
+					if ( p === RGBA_ASTC_10x5_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x5_KHR : extension.COMPRESSED_RGBA_ASTC_10x5_KHR;
+					if ( p === RGBA_ASTC_10x6_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x6_KHR : extension.COMPRESSED_RGBA_ASTC_10x6_KHR;
+					if ( p === RGBA_ASTC_10x8_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x8_KHR : extension.COMPRESSED_RGBA_ASTC_10x8_KHR;
+					if ( p === RGBA_ASTC_10x10_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_10x10_KHR : extension.COMPRESSED_RGBA_ASTC_10x10_KHR;
+					if ( p === RGBA_ASTC_12x10_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_12x10_KHR : extension.COMPRESSED_RGBA_ASTC_12x10_KHR;
+					if ( p === RGBA_ASTC_12x12_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR : extension.COMPRESSED_RGBA_ASTC_12x12_KHR;
 
 				} else {
 
@@ -27019,13 +27032,15 @@ var app = (function (exports) {
 
 			// BPTC
 
-			if ( p === RGBA_BPTC_Format ) {
+			if ( p === RGBA_BPTC_Format || p === RGB_BPTC_SIGNED_Format || p === RGB_BPTC_UNSIGNED_Format ) {
 
 				extension = extensions.get( 'EXT_texture_compression_bptc' );
 
 				if ( extension !== null ) {
 
-					if ( p === RGBA_BPTC_Format ) return ( colorSpace === SRGBColorSpace ) ? extension.COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT : extension.COMPRESSED_RGBA_BPTC_UNORM_EXT;
+					if ( p === RGBA_BPTC_Format ) return ( transferFunction === SRGBTransferFunction ) ? extension.COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT : extension.COMPRESSED_RGBA_BPTC_UNORM_EXT;
+					if ( p === RGB_BPTC_SIGNED_Format ) return extension.COMPRESSED_RGB_BPTC_SIGNED_FLOAT_EXT;
+					if ( p === RGB_BPTC_UNSIGNED_Format ) return extension.COMPRESSED_RGB_BPTC_UNSIGNED_FLOAT_EXT;
 
 				} else {
 
@@ -28066,14 +28081,6 @@ var app = (function (exports) {
 
 				camera.matrix.decompose( camera.position, camera.quaternion, camera.scale );
 				camera.updateMatrixWorld( true );
-
-				const children = camera.children;
-
-				for ( let i = 0, l = children.length; i < l; i ++ ) {
-
-					children[ i ].updateMatrixWorld( true );
-
-				}
 
 				camera.projectionMatrix.copy( cameraXR.projectionMatrix );
 				camera.projectionMatrixInverse.copy( cameraXR.projectionMatrixInverse );
@@ -29234,14 +29241,6 @@ var app = (function (exports) {
 			dispose: dispose
 
 		};
-
-	}
-
-	function createCanvasElement() {
-
-		const canvas = createElementNS( 'canvas' );
-		canvas.style.display = 'block';
-		return canvas;
 
 	}
 
@@ -30970,12 +30969,36 @@ var app = (function (exports) {
 
 				if ( refreshProgram || _currentCamera !== camera ) {
 
+					// common camera uniforms
+
 					p_uniforms.setValue( _gl, 'projectionMatrix', camera.projectionMatrix );
+					p_uniforms.setValue( _gl, 'viewMatrix', camera.matrixWorldInverse );
+
+					const uCamPos = p_uniforms.map.cameraPosition;
+
+					if ( uCamPos !== undefined ) {
+
+						uCamPos.setValue( _gl, _vector3.setFromMatrixPosition( camera.matrixWorld ) );
+
+					}
 
 					if ( capabilities.logarithmicDepthBuffer ) {
 
 						p_uniforms.setValue( _gl, 'logDepthBufFC',
 							2.0 / ( Math.log( camera.far + 1.0 ) / Math.LN2 ) );
+
+					}
+
+					// consider moving isOrthographic to UniformLib and WebGLMaterials, see https://github.com/mrdoob/three.js/pull/26467#issuecomment-1645185067
+
+					if ( material.isMeshPhongMaterial ||
+						material.isMeshToonMaterial ||
+						material.isMeshLambertMaterial ||
+						material.isMeshBasicMaterial ||
+						material.isMeshStandardMaterial ||
+						material.isShaderMaterial ) {
+
+						p_uniforms.setValue( _gl, 'isOrthographic', camera.isOrthographicCamera === true );
 
 					}
 
@@ -30989,50 +31012,6 @@ var app = (function (exports) {
 
 						refreshMaterial = true;		// set to true on material change
 						refreshLights = true;		// remains set until update done
-
-					}
-
-					// load material specific uniforms
-					// (shader material also gets them for the sake of genericity)
-
-					if ( material.isShaderMaterial ||
-						material.isMeshPhongMaterial ||
-						material.isMeshToonMaterial ||
-						material.isMeshStandardMaterial ||
-						material.envMap ) {
-
-						const uCamPos = p_uniforms.map.cameraPosition;
-
-						if ( uCamPos !== undefined ) {
-
-							uCamPos.setValue( _gl,
-								_vector3.setFromMatrixPosition( camera.matrixWorld ) );
-
-						}
-
-					}
-
-					if ( material.isMeshPhongMaterial ||
-						material.isMeshToonMaterial ||
-						material.isMeshLambertMaterial ||
-						material.isMeshBasicMaterial ||
-						material.isMeshStandardMaterial ||
-						material.isShaderMaterial ) {
-
-						p_uniforms.setValue( _gl, 'isOrthographic', camera.isOrthographicCamera === true );
-
-					}
-
-					if ( material.isMeshPhongMaterial ||
-						material.isMeshToonMaterial ||
-						material.isMeshLambertMaterial ||
-						material.isMeshBasicMaterial ||
-						material.isMeshStandardMaterial ||
-						material.isShaderMaterial ||
-						material.isShadowMaterial ||
-						object.isSkinnedMesh ) {
-
-						p_uniforms.setValue( _gl, 'viewMatrix', camera.matrixWorldInverse );
 
 					}
 
@@ -33563,7 +33542,7 @@ var app = (function (exports) {
 
 			super.copy( source, recursive );
 
-			this.material = source.material;
+			this.material = Array.isArray( source.material ) ? source.material.slice() : source.material;
 			this.geometry = source.geometry;
 
 			return this;
@@ -33884,7 +33863,7 @@ var app = (function (exports) {
 
 			super.copy( source, recursive );
 
-			this.material = source.material;
+			this.material = Array.isArray( source.material ) ? source.material.slice() : source.material;
 			this.geometry = source.geometry;
 
 			return this;
@@ -43720,8 +43699,6 @@ var app = (function (exports) {
 
 				}
 
-				if ( ! texData ) return onError(); // TODO: Remove this when all loaders properly throw errors
-
 				if ( texData.image !== undefined ) {
 
 					texture.image = texData.image;
@@ -47127,6 +47104,12 @@ var app = (function (exports) {
 
 		disconnect() {
 
+			if ( this._connected === false ) {
+
+				return;
+
+			}
+
 			if ( this.filters.length > 0 ) {
 
 				this.source.disconnect( this.filters[ 0 ] );
@@ -50375,7 +50358,7 @@ var app = (function (exports) {
 
 	}
 
-	let id = 0;
+	let _id = 0;
 
 	class UniformsGroup extends EventDispatcher {
 
@@ -50385,7 +50368,7 @@ var app = (function (exports) {
 
 			this.isUniformsGroup = true;
 
-			Object.defineProperty( this, 'id', { value: id ++ } );
+			Object.defineProperty( this, 'id', { value: _id ++ } );
 
 			this.name = '';
 
@@ -52831,6 +52814,7 @@ var app = (function (exports) {
 		LineDashedMaterial: LineDashedMaterial,
 		LineLoop: LineLoop,
 		LineSegments: LineSegments,
+		LinearDisplayP3ColorSpace: LinearDisplayP3ColorSpace,
 		LinearEncoding: LinearEncoding,
 		LinearFilter: LinearFilter,
 		LinearInterpolant: LinearInterpolant,
@@ -52947,6 +52931,8 @@ var app = (function (exports) {
 		RGBA_S3TC_DXT1_Format: RGBA_S3TC_DXT1_Format,
 		RGBA_S3TC_DXT3_Format: RGBA_S3TC_DXT3_Format,
 		RGBA_S3TC_DXT5_Format: RGBA_S3TC_DXT5_Format,
+		RGB_BPTC_SIGNED_Format: RGB_BPTC_SIGNED_Format,
+		RGB_BPTC_UNSIGNED_Format: RGB_BPTC_UNSIGNED_Format,
 		RGB_ETC1_Format: RGB_ETC1_Format,
 		RGB_ETC2_Format: RGB_ETC2_Format,
 		RGB_PVRTC_2BPPV1_Format: RGB_PVRTC_2BPPV1_Format,
@@ -53056,6 +53042,7 @@ var app = (function (exports) {
 		ZeroSlopeEnding: ZeroSlopeEnding,
 		ZeroStencilOp: ZeroStencilOp,
 		_SRGBAFormat: _SRGBAFormat,
+		createCanvasElement: createCanvasElement,
 		sRGBEncoding: sRGBEncoding
 	});
 
@@ -53065,7 +53052,7 @@ var app = (function (exports) {
 
 	/* node_modules/@threlte/core/dist/internal/DisposableObject.svelte generated by Svelte v4.2.1 */
 
-	function create_fragment$6(ctx) {
+	function create_fragment$7(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[9].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[8], null);
@@ -53116,7 +53103,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_fragment$6.name,
+			id: create_fragment$7.name,
 			type: "component",
 			source: "",
 			ctx
@@ -53127,7 +53114,7 @@ var app = (function (exports) {
 
 	const contextName = 'threlte-disposable-object-context';
 
-	function instance$6($$self, $$props, $$invalidate) {
+	function instance$7($$self, $$props, $$invalidate) {
 		let $mergedDispose;
 		let $parentDispose;
 		let { $$slots: slots = {}, $$scope } = $$props;
@@ -53227,13 +53214,13 @@ var app = (function (exports) {
 	class DisposableObject extends SvelteComponentDev {
 		constructor(options) {
 			super(options);
-			init(this, options, instance$6, create_fragment$6, safe_not_equal, { object: 2, dispose: 3 });
+			init(this, options, instance$7, create_fragment$7, safe_not_equal, { object: 2, dispose: 3 });
 
 			dispatch_dev("SvelteRegisterComponent", {
 				component: this,
 				tagName: "DisposableObject",
 				options,
-				id: create_fragment$6.name
+				id: create_fragment$7.name
 			});
 		}
 
@@ -53295,7 +53282,7 @@ var app = (function (exports) {
 
 	/* node_modules/@threlte/core/dist/internal/HierarchicalObject.svelte generated by Svelte v4.2.1 */
 
-	function create_fragment$5(ctx) {
+	function create_fragment$6(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[8].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[7], null);
@@ -53346,7 +53333,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_fragment$5.name,
+			id: create_fragment$6.name,
 			type: "component",
 			source: "",
 			ctx
@@ -53362,7 +53349,7 @@ var app = (function (exports) {
 		};
 	};
 
-	function instance$5($$self, $$props, $$invalidate) {
+	function instance$6($$self, $$props, $$invalidate) {
 		let $parentStore;
 		let { $$slots: slots = {}, $$scope } = $$props;
 		validate_slots('HierarchicalObject', slots, ['default']);
@@ -53512,7 +53499,7 @@ var app = (function (exports) {
 		constructor(options) {
 			super(options);
 
-			init(this, options, instance$5, create_fragment$5, safe_not_equal, {
+			init(this, options, instance$6, create_fragment$6, safe_not_equal, {
 				object: 3,
 				children: 1,
 				onChildMount: 4,
@@ -53524,7 +53511,7 @@ var app = (function (exports) {
 				component: this,
 				tagName: "HierarchicalObject",
 				options,
-				id: create_fragment$5.name
+				id: create_fragment$6.name
 			});
 		}
 
@@ -53572,7 +53559,7 @@ var app = (function (exports) {
 	/* node_modules/@threlte/core/dist/internal/SceneGraphObject.svelte generated by Svelte v4.2.1 */
 
 	// (5:0) <HierarchicalObject   {object}   onChildMount={(child) => object.add(child)}   onChildDestroy={(child) => object.remove(child)} >
-	function create_default_slot$4(ctx) {
+	function create_default_slot$5(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[1].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[4], null);
@@ -53620,7 +53607,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_default_slot$4.name,
+			id: create_default_slot$5.name,
 			type: "slot",
 			source: "(5:0) <HierarchicalObject   {object}   onChildMount={(child) => object.add(child)}   onChildDestroy={(child) => object.remove(child)} >",
 			ctx
@@ -53629,7 +53616,7 @@ var app = (function (exports) {
 		return block;
 	}
 
-	function create_fragment$4(ctx) {
+	function create_fragment$5(ctx) {
 		let hierarchicalobject;
 		let current;
 
@@ -53638,7 +53625,7 @@ var app = (function (exports) {
 					object: /*object*/ ctx[0],
 					onChildMount: /*func*/ ctx[2],
 					onChildDestroy: /*func_1*/ ctx[3],
-					$$slots: { default: [create_default_slot$4] },
+					$$slots: { default: [create_default_slot$5] },
 					$$scope: { ctx }
 				},
 				$$inline: true
@@ -53683,7 +53670,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_fragment$4.name,
+			id: create_fragment$5.name,
 			type: "component",
 			source: "",
 			ctx
@@ -53692,7 +53679,7 @@ var app = (function (exports) {
 		return block;
 	}
 
-	function instance$4($$self, $$props, $$invalidate) {
+	function instance$5($$self, $$props, $$invalidate) {
 		let { $$slots: slots = {}, $$scope } = $$props;
 		validate_slots('SceneGraphObject', slots, ['default']);
 		let { object } = $$props;
@@ -53733,13 +53720,13 @@ var app = (function (exports) {
 	class SceneGraphObject extends SvelteComponentDev {
 		constructor(options) {
 			super(options);
-			init(this, options, instance$4, create_fragment$4, safe_not_equal, { object: 0 });
+			init(this, options, instance$5, create_fragment$5, safe_not_equal, { object: 0 });
 
 			dispatch_dev("SvelteRegisterComponent", {
 				component: this,
 				tagName: "SceneGraphObject",
 				options,
-				id: create_fragment$4.name
+				id: create_fragment$5.name
 			});
 		}
 
@@ -54242,7 +54229,7 @@ var app = (function (exports) {
 	}
 
 	// (103:0) {:else}
-	function create_else_block(ctx) {
+	function create_else_block$1(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[12].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[13], get_default_slot_context_1);
@@ -54290,7 +54277,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_else_block.name,
+			id: create_else_block$1.name,
 			type: "else",
 			source: "(103:0) {:else}",
 			ctx
@@ -54300,14 +54287,14 @@ var app = (function (exports) {
 	}
 
 	// (99:0) {#if extendsObject3D(ref)}
-	function create_if_block$1(ctx) {
+	function create_if_block$2(ctx) {
 		let scenegraphobject;
 		let current;
 
 		scenegraphobject = new SceneGraphObject({
 				props: {
 					object: /*ref*/ ctx[1],
-					$$slots: { default: [create_default_slot$3] },
+					$$slots: { default: [create_default_slot$4] },
 					$$scope: { ctx }
 				},
 				$$inline: true
@@ -54347,7 +54334,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_if_block$1.name,
+			id: create_if_block$2.name,
 			type: "if",
 			source: "(99:0) {#if extendsObject3D(ref)}",
 			ctx
@@ -54357,7 +54344,7 @@ var app = (function (exports) {
 	}
 
 	// (100:2) <SceneGraphObject object={ref}>
-	function create_default_slot$3(ctx) {
+	function create_default_slot$4(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[12].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[13], get_default_slot_context);
@@ -54405,7 +54392,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_default_slot$3.name,
+			id: create_default_slot$4.name,
 			type: "slot",
 			source: "(100:2) <SceneGraphObject object={ref}>",
 			ctx
@@ -54414,7 +54401,7 @@ var app = (function (exports) {
 		return block;
 	}
 
-	function create_fragment$3(ctx) {
+	function create_fragment$4(ctx) {
 		let show_if_1 = /*isDisposableObject*/ ctx[4](/*ref*/ ctx[1]);
 		let t;
 		let show_if;
@@ -54423,7 +54410,7 @@ var app = (function (exports) {
 		let if_block1_anchor;
 		let current;
 		let if_block0 = show_if_1 && create_if_block_1(ctx);
-		const if_block_creators = [create_if_block$1, create_else_block];
+		const if_block_creators = [create_if_block$2, create_else_block$1];
 		const if_blocks = [];
 
 		function select_block_type(ctx, dirty) {
@@ -54529,7 +54516,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_fragment$3.name,
+			id: create_fragment$4.name,
 			type: "component",
 			source: "",
 			ctx
@@ -54538,7 +54525,7 @@ var app = (function (exports) {
 		return block;
 	}
 
-	function instance$3($$self, $$props, $$invalidate) {
+	function instance$4($$self, $$props, $$invalidate) {
 		const omit_props_names = ["is","args","attach","manual","makeDefault","dispose","ref"];
 		let $$restProps = compute_rest_props($$props, omit_props_names);
 		let $parent;
@@ -54764,7 +54751,7 @@ var app = (function (exports) {
 		constructor(options) {
 			super(options);
 
-			init(this, options, instance$3, create_fragment$3, safe_not_equal, {
+			init(this, options, instance$4, create_fragment$4, safe_not_equal, {
 				is: 6,
 				args: 7,
 				attach: 8,
@@ -54778,7 +54765,7 @@ var app = (function (exports) {
 				component: this,
 				tagName: "T",
 				options,
-				id: create_fragment$3.name
+				id: create_fragment$4.name
 			});
 		}
 
@@ -55360,14 +55347,14 @@ var app = (function (exports) {
 	const file$1 = "node_modules/@threlte/core/dist/Canvas.svelte";
 
 	// (127:2) {#if initialized}
-	function create_if_block(ctx) {
+	function create_if_block$1(ctx) {
 		let t;
 		let current;
 
 		t = new T$1({
 				props: {
 					is: /*contexts*/ ctx[0].ctx.scene,
-					$$slots: { default: [create_default_slot$2] },
+					$$slots: { default: [create_default_slot$3] },
 					$$scope: { ctx }
 				},
 				$$inline: true
@@ -55407,7 +55394,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_if_block.name,
+			id: create_if_block$1.name,
 			type: "if",
 			source: "(127:2) {#if initialized}",
 			ctx
@@ -55417,7 +55404,7 @@ var app = (function (exports) {
 	}
 
 	// (128:4) <T is={contexts.ctx.scene}>
-	function create_default_slot$2(ctx) {
+	function create_default_slot$3(ctx) {
 		let current;
 		const default_slot_template = /*#slots*/ ctx[15].default;
 		const default_slot = create_slot(default_slot_template, ctx, /*$$scope*/ ctx[17], null);
@@ -55465,7 +55452,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_default_slot$2.name,
+			id: create_default_slot$3.name,
 			type: "slot",
 			source: "(128:4) <T is={contexts.ctx.scene}>",
 			ctx
@@ -55474,12 +55461,12 @@ var app = (function (exports) {
 		return block;
 	}
 
-	function create_fragment$2(ctx) {
+	function create_fragment$3(ctx) {
 		let canvas_1;
 		let current;
 		let mounted;
 		let dispose;
-		let if_block = /*initialized*/ ctx[2] && create_if_block(ctx);
+		let if_block = /*initialized*/ ctx[2] && create_if_block$1(ctx);
 
 		const block = {
 			c: function create() {
@@ -55511,7 +55498,7 @@ var app = (function (exports) {
 							transition_in(if_block, 1);
 						}
 					} else {
-						if_block = create_if_block(ctx);
+						if_block = create_if_block$1(ctx);
 						if_block.c();
 						transition_in(if_block, 1);
 						if_block.m(canvas_1, null);
@@ -55549,7 +55536,7 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_fragment$2.name,
+			id: create_fragment$3.name,
 			type: "component",
 			source: "",
 			ctx
@@ -55564,7 +55551,7 @@ var app = (function (exports) {
 		invalidationHandlers.forEach(fn => fn(debugFrameloopMessage));
 	};
 
-	function instance$2($$self, $$props, $$invalidate) {
+	function instance$3($$self, $$props, $$invalidate) {
 		let { $$slots: slots = {}, $$scope } = $$props;
 		validate_slots('Canvas', slots, ['default']);
 		let { colorManagementEnabled = true } = $$props;
@@ -55779,7 +55766,7 @@ var app = (function (exports) {
 		constructor(options) {
 			super(options);
 
-			init(this, options, instance$2, create_fragment$2, safe_not_equal, {
+			init(this, options, instance$3, create_fragment$3, safe_not_equal, {
 				colorManagementEnabled: 4,
 				colorSpace: 5,
 				debugFrameloop: 6,
@@ -55797,7 +55784,7 @@ var app = (function (exports) {
 				component: this,
 				tagName: "Canvas",
 				options,
-				id: create_fragment$2.name
+				id: create_fragment$3.name
 			});
 		}
 
@@ -56012,6 +55999,250 @@ var app = (function (exports) {
 	    };
 	};
 
+	/* webview/Scene.svelte generated by Svelte v4.2.1 */
+
+	const { console: console_1 } = globals;
+
+	// (31:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>
+	function create_default_slot$2(ctx) {
+		let t_circlegeometry;
+		let t;
+		let t_meshstandardmaterial;
+		let current;
+		t_circlegeometry = new T.CircleGeometry({ props: { args: [4, 40] }, $$inline: true });
+
+		t_meshstandardmaterial = new T.MeshStandardMaterial({
+				props: { color: "#1e1e2e" },
+				$$inline: true
+			});
+
+		const block = {
+			c: function create() {
+				create_component(t_circlegeometry.$$.fragment);
+				t = space();
+				create_component(t_meshstandardmaterial.$$.fragment);
+			},
+			m: function mount(target, anchor) {
+				mount_component(t_circlegeometry, target, anchor);
+				insert_dev(target, t, anchor);
+				mount_component(t_meshstandardmaterial, target, anchor);
+				current = true;
+			},
+			p: noop,
+			i: function intro(local) {
+				if (current) return;
+				transition_in(t_circlegeometry.$$.fragment, local);
+				transition_in(t_meshstandardmaterial.$$.fragment, local);
+				current = true;
+			},
+			o: function outro(local) {
+				transition_out(t_circlegeometry.$$.fragment, local);
+				transition_out(t_meshstandardmaterial.$$.fragment, local);
+				current = false;
+			},
+			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t);
+				}
+
+				destroy_component(t_circlegeometry, detaching);
+				destroy_component(t_meshstandardmaterial, detaching);
+			}
+		};
+
+		dispatch_dev("SvelteRegisterBlock", {
+			block,
+			id: create_default_slot$2.name,
+			type: "slot",
+			source: "(31:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>",
+			ctx
+		});
+
+		return block;
+	}
+
+	function create_fragment$2(ctx) {
+		let t_perspectivecamera;
+		let t0;
+		let t_directionallight;
+		let t1;
+		let t_mesh;
+		let current;
+
+		t_perspectivecamera = new T.PerspectiveCamera({
+				props: {
+					makeDefault: true,
+					position: [10, 10, 10]
+				},
+				$$inline: true
+			});
+
+		t_perspectivecamera.$on("create", create_handler$1);
+
+		t_directionallight = new T.DirectionalLight({
+				props: {
+					position: [0, 10, 10],
+					castShadow: true,
+					intensity: 3
+				},
+				$$inline: true
+			});
+
+		t_mesh = new T.Mesh({
+				props: {
+					"rotation.x": -Math.PI / 2,
+					receiveShadow: true,
+					$$slots: { default: [create_default_slot$2] },
+					$$scope: { ctx }
+				},
+				$$inline: true
+			});
+
+		const block = {
+			c: function create() {
+				create_component(t_perspectivecamera.$$.fragment);
+				t0 = space();
+				create_component(t_directionallight.$$.fragment);
+				t1 = space();
+				create_component(t_mesh.$$.fragment);
+			},
+			l: function claim(nodes) {
+				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
+			},
+			m: function mount(target, anchor) {
+				mount_component(t_perspectivecamera, target, anchor);
+				insert_dev(target, t0, anchor);
+				mount_component(t_directionallight, target, anchor);
+				insert_dev(target, t1, anchor);
+				mount_component(t_mesh, target, anchor);
+				current = true;
+			},
+			p: function update(ctx, [dirty]) {
+				const t_mesh_changes = {};
+
+				if (dirty & /*$$scope*/ 4) {
+					t_mesh_changes.$$scope = { dirty, ctx };
+				}
+
+				t_mesh.$set(t_mesh_changes);
+			},
+			i: function intro(local) {
+				if (current) return;
+				transition_in(t_perspectivecamera.$$.fragment, local);
+				transition_in(t_directionallight.$$.fragment, local);
+				transition_in(t_mesh.$$.fragment, local);
+				current = true;
+			},
+			o: function outro(local) {
+				transition_out(t_perspectivecamera.$$.fragment, local);
+				transition_out(t_directionallight.$$.fragment, local);
+				transition_out(t_mesh.$$.fragment, local);
+				current = false;
+			},
+			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(t0);
+					detach_dev(t1);
+				}
+
+				destroy_component(t_perspectivecamera, detaching);
+				destroy_component(t_directionallight, detaching);
+				destroy_component(t_mesh, detaching);
+			}
+		};
+
+		dispatch_dev("SvelteRegisterBlock", {
+			block,
+			id: create_fragment$2.name,
+			type: "component",
+			source: "",
+			ctx
+		});
+
+		return block;
+	}
+
+	const create_handler$1 = ({ ref }) => {
+		ref.lookAt(0, 1, 0);
+	};
+
+	function instance$2($$self, $$props, $$invalidate) {
+		let { $$slots: slots = {}, $$scope } = $$props;
+		validate_slots('Scene', slots, []);
+		let { script = "" } = $$props;
+
+		let { log = () => {
+			
+		} } = $$props;
+
+		onMount(() => {
+			if (!script || typeof script !== "string") return;
+			log(null);
+
+			try {
+				const { onStart, onTick, onEnd } = new Function("log", script)(log);
+				console.log("RES", onStart, onTick, onEnd);
+				if (onStart) onStart();
+			} catch(e) {
+				console.error("SCRIPT ERR:", e);
+			}
+		});
+
+		const writable_props = ['script', 'log'];
+
+		Object.keys($$props).forEach(key => {
+			if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console_1.warn(`<Scene> was created with unknown prop '${key}'`);
+		});
+
+		$$self.$$set = $$props => {
+			if ('script' in $$props) $$invalidate(0, script = $$props.script);
+			if ('log' in $$props) $$invalidate(1, log = $$props.log);
+		};
+
+		$$self.$capture_state = () => ({ T, onMount, script, log });
+
+		$$self.$inject_state = $$props => {
+			if ('script' in $$props) $$invalidate(0, script = $$props.script);
+			if ('log' in $$props) $$invalidate(1, log = $$props.log);
+		};
+
+		if ($$props && "$$inject" in $$props) {
+			$$self.$inject_state($$props.$$inject);
+		}
+
+		return [script, log];
+	}
+
+	class Scene extends SvelteComponentDev {
+		constructor(options) {
+			super(options);
+			init(this, options, instance$2, create_fragment$2, safe_not_equal, { script: 0, log: 1 });
+
+			dispatch_dev("SvelteRegisterComponent", {
+				component: this,
+				tagName: "Scene",
+				options,
+				id: create_fragment$2.name
+			});
+		}
+
+		get script() {
+			throw new Error("<Scene>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		set script(value) {
+			throw new Error("<Scene>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		get log() {
+			throw new Error("<Scene>: Props cannot be read directly from the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+
+		set log(value) {
+			throw new Error("<Scene>: Props cannot be set directly on the component instance unless compiling with 'accessors: true' or '<svelte:options accessors/>'");
+		}
+	}
+
 	/**
 	 * @param {any} obj
 	 * @returns {boolean}
@@ -56151,9 +56382,9 @@ var app = (function (exports) {
 		return spring;
 	}
 
-	/* webview/Scene.svelte generated by Svelte v4.2.1 */
+	/* webview/BlankScene.svelte generated by Svelte v4.2.1 */
 
-	// (39:0) <T.Mesh   rotation.y={rotation}   position.y={1}   scale={$scale}   on:pointerenter={() => scale.set(1.5)}   on:pointerleave={() => scale.set(1)}   castShadow >
+	// (33:0) <T.Mesh   rotation.y={rotation}   position.y={0.12}   scale={$scale}   on:pointerenter={() => scale.set(1.5)}   on:pointerleave={() => scale.set(1)}   castShadow >
 	function create_default_slot_2(ctx) {
 		let t_boxgeometry;
 		let t;
@@ -56161,7 +56392,7 @@ var app = (function (exports) {
 		let current;
 
 		t_boxgeometry = new T.BoxGeometry({
-				props: { args: [1, 2, 1] },
+				props: { args: [1, 0.25, 1] },
 				$$inline: true
 			});
 
@@ -56208,14 +56439,14 @@ var app = (function (exports) {
 			block,
 			id: create_default_slot_2.name,
 			type: "slot",
-			source: "(39:0) <T.Mesh   rotation.y={rotation}   position.y={1}   scale={$scale}   on:pointerenter={() => scale.set(1.5)}   on:pointerleave={() => scale.set(1)}   castShadow >",
+			source: "(33:0) <T.Mesh   rotation.y={rotation}   position.y={0.12}   scale={$scale}   on:pointerenter={() => scale.set(1.5)}   on:pointerleave={() => scale.set(1)}   castShadow >",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (51:0) <T.Mesh   position.y={2.45 + posY}   castShadow >
+	// (45:0) <T.Mesh   position.y={0.5 + 0.12 + posY}   castShadow >
 	function create_default_slot_1(ctx) {
 		let t_spheregeometry;
 		let t;
@@ -56270,14 +56501,14 @@ var app = (function (exports) {
 			block,
 			id: create_default_slot_1.name,
 			type: "slot",
-			source: "(51:0) <T.Mesh   position.y={2.45 + posY}   castShadow >",
+			source: "(45:0) <T.Mesh   position.y={0.5 + 0.12 + posY}   castShadow >",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (59:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>
+	// (53:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>
 	function create_default_slot$1(ctx) {
 		let t_circlegeometry;
 		let t;
@@ -56328,7 +56559,7 @@ var app = (function (exports) {
 			block,
 			id: create_default_slot$1.name,
 			type: "slot",
-			source: "(59:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>",
+			source: "(53:0) <T.Mesh rotation.x={-Math.PI/2} receiveShadow>",
 			ctx
 		});
 
@@ -56369,7 +56600,7 @@ var app = (function (exports) {
 		t_mesh0 = new T.Mesh({
 				props: {
 					"rotation.y": /*rotation*/ ctx[1],
-					"position.y": 1,
+					"position.y": 0.12,
 					scale: /*$scale*/ ctx[2],
 					castShadow: true,
 					$$slots: { default: [create_default_slot_2] },
@@ -56383,7 +56614,7 @@ var app = (function (exports) {
 
 		t_mesh1 = new T.Mesh({
 				props: {
-					"position.y": 2.45 + /*posY*/ ctx[0],
+					"position.y": 0.5 + 0.12 + /*posY*/ ctx[0],
 					castShadow: true,
 					$$slots: { default: [create_default_slot_1] },
 					$$scope: { ctx }
@@ -56439,7 +56670,7 @@ var app = (function (exports) {
 
 				t_mesh0.$set(t_mesh0_changes);
 				const t_mesh1_changes = {};
-				if (dirty & /*posY*/ 1) t_mesh1_changes["position.y"] = 2.45 + /*posY*/ ctx[0];
+				if (dirty & /*posY*/ 1) t_mesh1_changes["position.y"] = 0.5 + 0.12 + /*posY*/ ctx[0];
 
 				if (dirty & /*$$scope*/ 256) {
 					t_mesh1_changes.$$scope = { dirty, ctx };
@@ -56499,6 +56730,7 @@ var app = (function (exports) {
 	}
 
 	const drag = 0.995;
+	const dissipation = 0.8;
 
 	const create_handler = ({ ref }) => {
 		ref.lookAt(0, 1, 0);
@@ -56507,10 +56739,10 @@ var app = (function (exports) {
 	function instance$1($$self, $$props, $$invalidate) {
 		let $scale;
 		let { $$slots: slots = {}, $$scope } = $$props;
-		validate_slots('Scene', slots, []);
+		validate_slots('BlankScene', slots, []);
 		const gravity = -0.01;
 		let velY = 0;
-		let posY = 4;
+		let posY = 8;
 		const scale = spring(1);
 		validate_store(scale, 'scale');
 		component_subscribe($$self, scale, value => $$invalidate(2, $scale = value));
@@ -56523,6 +56755,7 @@ var app = (function (exports) {
 
 			if (posY < 0) {
 				velY = -velY;
+				velY *= dissipation;
 				$$invalidate(0, posY = 0);
 			}
 
@@ -56532,7 +56765,7 @@ var app = (function (exports) {
 		const writable_props = [];
 
 		Object.keys($$props).forEach(key => {
-			if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<Scene> was created with unknown prop '${key}'`);
+			if (!~writable_props.indexOf(key) && key.slice(0, 2) !== '$$' && key !== 'slot') console.warn(`<BlankScene> was created with unknown prop '${key}'`);
 		});
 
 		const pointerenter_handler = () => scale.set(1.5);
@@ -56544,6 +56777,7 @@ var app = (function (exports) {
 			spring,
 			gravity,
 			drag,
+			dissipation,
 			velY,
 			posY,
 			scale,
@@ -56564,14 +56798,14 @@ var app = (function (exports) {
 		return [posY, rotation, $scale, scale, pointerenter_handler, pointerleave_handler];
 	}
 
-	class Scene extends SvelteComponentDev {
+	class BlankScene extends SvelteComponentDev {
 		constructor(options) {
 			super(options);
 			init(this, options, instance$1, create_fragment$1, safe_not_equal, {});
 
 			dispatch_dev("SvelteRegisterComponent", {
 				component: this,
-				tagName: "Scene",
+				tagName: "BlankScene",
 				options,
 				id: create_fragment$1.name
 			});
@@ -56583,15 +56817,62 @@ var app = (function (exports) {
 
 	function get_each_context(ctx, list, i) {
 		const child_ctx = ctx.slice();
-		child_ctx[3] = list[i];
+		child_ctx[4] = list[i];
 		return child_ctx;
 	}
 
-	// (21:4) <Canvas>
-	function create_default_slot(ctx) {
+	// (25:8) {:else}
+	function create_else_block(ctx) {
+		let blankscene;
+		let current;
+		blankscene = new BlankScene({ $$inline: true });
+
+		const block = {
+			c: function create() {
+				create_component(blankscene.$$.fragment);
+			},
+			m: function mount(target, anchor) {
+				mount_component(blankscene, target, anchor);
+				current = true;
+			},
+			p: noop,
+			i: function intro(local) {
+				if (current) return;
+				transition_in(blankscene.$$.fragment, local);
+				current = true;
+			},
+			o: function outro(local) {
+				transition_out(blankscene.$$.fragment, local);
+				current = false;
+			},
+			d: function destroy(detaching) {
+				destroy_component(blankscene, detaching);
+			}
+		};
+
+		dispatch_dev("SvelteRegisterBlock", {
+			block,
+			id: create_else_block.name,
+			type: "else",
+			source: "(25:8) {:else}",
+			ctx
+		});
+
+		return block;
+	}
+
+	// (23:8) {#if $media}
+	function create_if_block(ctx) {
 		let scene;
 		let current;
-		scene = new Scene({ $$inline: true });
+
+		scene = new Scene({
+				props: {
+					script: /*$media*/ ctx[1],
+					log: /*log*/ ctx[3]
+				},
+				$$inline: true
+			});
 
 		const block = {
 			c: function create() {
@@ -56600,6 +56881,11 @@ var app = (function (exports) {
 			m: function mount(target, anchor) {
 				mount_component(scene, target, anchor);
 				current = true;
+			},
+			p: function update(ctx, dirty) {
+				const scene_changes = {};
+				if (dirty & /*$media*/ 2) scene_changes.script = /*$media*/ ctx[1];
+				scene.$set(scene_changes);
 			},
 			i: function intro(local) {
 				if (current) return;
@@ -56617,16 +56903,99 @@ var app = (function (exports) {
 
 		dispatch_dev("SvelteRegisterBlock", {
 			block,
-			id: create_default_slot.name,
-			type: "slot",
-			source: "(21:4) <Canvas>",
+			id: create_if_block.name,
+			type: "if",
+			source: "(23:8) {#if $media}",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (20:4) {#key $media}
+	// (22:4) <Canvas>
+	function create_default_slot(ctx) {
+		let current_block_type_index;
+		let if_block;
+		let if_block_anchor;
+		let current;
+		const if_block_creators = [create_if_block, create_else_block];
+		const if_blocks = [];
+
+		function select_block_type(ctx, dirty) {
+			if (/*$media*/ ctx[1]) return 0;
+			return 1;
+		}
+
+		current_block_type_index = select_block_type(ctx);
+		if_block = if_blocks[current_block_type_index] = if_block_creators[current_block_type_index](ctx);
+
+		const block = {
+			c: function create() {
+				if_block.c();
+				if_block_anchor = empty();
+			},
+			m: function mount(target, anchor) {
+				if_blocks[current_block_type_index].m(target, anchor);
+				insert_dev(target, if_block_anchor, anchor);
+				current = true;
+			},
+			p: function update(ctx, dirty) {
+				let previous_block_index = current_block_type_index;
+				current_block_type_index = select_block_type(ctx);
+
+				if (current_block_type_index === previous_block_index) {
+					if_blocks[current_block_type_index].p(ctx, dirty);
+				} else {
+					group_outros();
+
+					transition_out(if_blocks[previous_block_index], 1, 1, () => {
+						if_blocks[previous_block_index] = null;
+					});
+
+					check_outros();
+					if_block = if_blocks[current_block_type_index];
+
+					if (!if_block) {
+						if_block = if_blocks[current_block_type_index] = if_block_creators[current_block_type_index](ctx);
+						if_block.c();
+					} else {
+						if_block.p(ctx, dirty);
+					}
+
+					transition_in(if_block, 1);
+					if_block.m(if_block_anchor.parentNode, if_block_anchor);
+				}
+			},
+			i: function intro(local) {
+				if (current) return;
+				transition_in(if_block);
+				current = true;
+			},
+			o: function outro(local) {
+				transition_out(if_block);
+				current = false;
+			},
+			d: function destroy(detaching) {
+				if (detaching) {
+					detach_dev(if_block_anchor);
+				}
+
+				if_blocks[current_block_type_index].d(detaching);
+			}
+		};
+
+		dispatch_dev("SvelteRegisterBlock", {
+			block,
+			id: create_default_slot.name,
+			type: "slot",
+			source: "(22:4) <Canvas>",
+			ctx
+		});
+
+		return block;
+	}
+
+	// (21:4) {#key $media}
 	function create_key_block(ctx) {
 		let canvas;
 		let current;
@@ -56650,7 +57019,7 @@ var app = (function (exports) {
 			p: function update(ctx, dirty) {
 				const canvas_changes = {};
 
-				if (dirty & /*$$scope*/ 64) {
+				if (dirty & /*$$scope, $media*/ 130) {
 					canvas_changes.$$scope = { dirty, ctx };
 				}
 
@@ -56674,39 +57043,35 @@ var app = (function (exports) {
 			block,
 			id: create_key_block.name,
 			type: "key",
-			source: "(20:4) {#key $media}",
+			source: "(21:4) {#key $media}",
 			ctx
 		});
 
 		return block;
 	}
 
-	// (29:9) {#each logData as str}
+	// (32:48) {#each logData as str}
 	function create_each_block(ctx) {
-		let t0_value = /*str*/ ctx[3] + "";
-		let t0;
-		let t1;
+		let t_value = /*str*/ ctx[4] + "";
+		let t;
 		let br;
 
 		const block = {
 			c: function create() {
-				t0 = text(t0_value);
-				t1 = space();
+				t = text(t_value);
 				br = element("br");
-				add_location(br, file, 36, 38, 576);
+				add_location(br, file, 37, 76, 699);
 			},
 			m: function mount(target, anchor) {
-				insert_dev(target, t0, anchor);
-				insert_dev(target, t1, anchor);
+				insert_dev(target, t, anchor);
 				insert_dev(target, br, anchor);
 			},
 			p: function update(ctx, dirty) {
-				if (dirty & /*logData*/ 4 && t0_value !== (t0_value = /*str*/ ctx[3] + "")) set_data_dev(t0, t0_value);
+				if (dirty & /*logData*/ 4 && t_value !== (t_value = /*str*/ ctx[4] + "")) set_data_dev(t, t_value);
 			},
 			d: function destroy(detaching) {
 				if (detaching) {
-					detach_dev(t0);
-					detach_dev(t1);
+					detach_dev(t);
 					detach_dev(br);
 				}
 			}
@@ -56716,7 +57081,7 @@ var app = (function (exports) {
 			block,
 			id: create_each_block.name,
 			type: "each",
-			source: "(29:9) {#each logData as str}",
+			source: "(32:48) {#each logData as str}",
 			ctx
 		});
 
@@ -56729,9 +57094,12 @@ var app = (function (exports) {
 		let t0;
 		let code;
 		let t1;
-		let t2_value = JSON.stringify(/*$media*/ ctx[1]) + "";
+		let br0;
 		let t2;
+		let br1;
+		let br2;
 		let t3;
+		let br3;
 		let current;
 		let key_block = create_key_block(ctx);
 		let each_value = ensure_array_like_dev(/*logData*/ ctx[2]);
@@ -56747,18 +57115,26 @@ var app = (function (exports) {
 				key_block.c();
 				t0 = space();
 				code = element("code");
-				t1 = text("Media: ");
-				t2 = text(t2_value);
-				t3 = text("\n    Log: ");
+				t1 = text("Media:");
+				br0 = element("br");
+				t2 = text(/*$media*/ ctx[1]);
+				br1 = element("br");
+				br2 = element("br");
+				t3 = text("Log:");
+				br3 = element("br");
 
 				for (let i = 0; i < each_blocks.length; i += 1) {
 					each_blocks[i].c();
 				}
 
-				attr_dev(div, "class", "container svelte-10ibh3r");
-				add_location(div, file, 26, 0, 389);
-				attr_dev(code, "class", "svelte-10ibh3r");
-				add_location(code, file, 34, 0, 495);
+				attr_dev(div, "class", "container svelte-13937z8");
+				add_location(div, file, 25, 0, 421);
+				add_location(br0, file, 37, 12, 635);
+				add_location(br1, file, 37, 26, 649);
+				add_location(br2, file, 37, 32, 655);
+				add_location(br3, file, 37, 42, 665);
+				attr_dev(code, "class", "svelte-13937z8");
+				add_location(code, file, 37, 0, 623);
 			},
 			l: function claim(nodes) {
 				throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -56769,8 +57145,12 @@ var app = (function (exports) {
 				insert_dev(target, t0, anchor);
 				insert_dev(target, code, anchor);
 				append_dev(code, t1);
+				append_dev(code, br0);
 				append_dev(code, t2);
+				append_dev(code, br1);
+				append_dev(code, br2);
 				append_dev(code, t3);
+				append_dev(code, br3);
 
 				for (let i = 0; i < each_blocks.length; i += 1) {
 					if (each_blocks[i]) {
@@ -56793,7 +57173,7 @@ var app = (function (exports) {
 					key_block.p(ctx, dirty);
 				}
 
-				if ((!current || dirty & /*$media*/ 2) && t2_value !== (t2_value = JSON.stringify(/*$media*/ ctx[1]) + "")) set_data_dev(t2, t2_value);
+				if (!current || dirty & /*$media*/ 2) set_data_dev(t2, /*$media*/ ctx[1]);
 
 				if (dirty & /*logData*/ 4) {
 					each_value = ensure_array_like_dev(/*logData*/ ctx[2]);
@@ -56867,9 +57247,14 @@ var app = (function (exports) {
 		$$subscribe_media();
 		let logData = [];
 
-		onMount(() => {
-			return;
-		}); // exec($media);
+		function log(msg) {
+			if (msg === null) {
+				$$invalidate(2, logData = []);
+				return;
+			}
+
+			$$invalidate(2, logData = [...logData, msg]);
+		}
 
 		$$self.$$.on_mount.push(function () {
 			if (media === undefined && !('media' in $$props || $$self.$$.bound[$$self.$$.props['media']])) {
@@ -56890,10 +57275,11 @@ var app = (function (exports) {
 		$$self.$capture_state = () => ({
 			Canvas,
 			Scene,
-			onMount,
+			BlankScene,
 			media,
 			reload,
 			logData,
+			log,
 			$media
 		});
 
@@ -56910,7 +57296,7 @@ var app = (function (exports) {
 			if ($$self.$$.dirty & /*$media*/ 2) ;
 		};
 
-		return [media, $media, logData];
+		return [media, $media, logData, log];
 	}
 
 	class App extends SvelteComponentDev {

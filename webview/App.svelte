@@ -2,6 +2,7 @@
     import { Canvas, T } from "@threlte/core";
     import Scene from "./Scene.svelte";
     import { onMount } from "svelte";
+    import BlankScene from "./BlankScene.svelte";
 
     export let media: any;
 
@@ -13,29 +14,28 @@
 
     let logData = [];
 
-
-    onMount(() => {
-        return;
-        function log(msg: string) {
-            logData = [...logData, msg];
+    function log(msg: string | null) {
+        if (msg === null) {
+            logData = [];
+            return;
         }
-
-        // exec($media);
-    });
+        logData = [...logData, msg];
+    }
 </script>
 
 <div class="container">
     {#key $media}
     <Canvas>
-        <Scene />
+        {#if $media}
+        <Scene script={$media} {log} />
+        {:else}
+        <BlankScene />
+        {/if}
     </Canvas>
     {/key}
 </div>
 
-<code>
-    Media: {JSON.stringify($media)}
-    Log: {#each logData as str} {str} <br /> {/each}
-</code>
+<code>Media:<br />{$media}<br /><br />Log:<br />{#each logData as str} {str}<br />{/each}</code>
 
 <style>
     .container {
@@ -52,5 +52,6 @@
         top: 1em;
         left: 1em;
         color: white;
+        white-space: pre-wrap;
     }
 </style>

@@ -6,8 +6,22 @@ function chooseInput(input, uiInput, inputKey) {
     return uiInput[inputKey];
 }
 
-function id() {
-    return "_" + Math.random().toString(36).substr(2, 9); 
+function getId() {
+    return "_" + Math.random().toString(36).substr(2, 9);
+}
+
+function unpack() {
+    let types = {};
+    let vars = {};
+
+    for (const arg of arguments) {
+        if (arg?.globals == null) continue;
+
+        if (arg.globals.types) types = { ...types, ...arg.globals.types };
+        if (arg.globals.vars) vars = { ...vars, ...arg.globals.vars };
+    }
+
+    return { types, vars };
 }
 
 const nodes = {
@@ -23,29 +37,30 @@ const nodes = {
             label: "Name",
             defaultValue: "var",
             triggerUpdate: true,
-        }, { multiline: false } );
+        }, { multiline: false });
 
         ui.addNumberInput({
             componentId: "value",
             label: "Value",
             defaultValue: 0,
             triggerUpdate: true,
-        }, {} );
+        }, {});
 
-        // TODO: Add id buffer
         ui.addBuffer({
             componentId: "id",
             label: "Id",
-            defaultValue: { id: "_id" },
+            defaultValue: { id: null },
             triggerUpdate: true,
-        }, {} );
+        }, {});
 
-        nodeBuilder.setUIInitializer((x) => {
-            const id = id();
-            return { id: { id }, name: id.slice(1) };
-        });
+        // ui.addTweakDial("tweaks", {});
 
         nodeBuilder.setUI(ui);
+
+        nodeBuilder.setUIInitializer((x) => {
+            const id = getId();
+            return { id, name: id.slice(1) };
+        });
 
         nodeBuilder.define(async (input, uiInput, from) => {
             // `name` is just used for debug output
@@ -53,10 +68,7 @@ const nodes = {
             const { id, name, value } = uiInput;
 
             return {
-                var: {
-                    data: { id, name },
-                    code: `${id} = ${value};`
-                },
+                var: { id, name, value },
                 value
             };
         });
@@ -70,8 +82,15 @@ const nodes = {
         nodeBuilder.setDescription("Change flow based on a condition");
 
         nodeBuilder.define(async (input, uiInput, from) => {
-            const { condition, tBody, fBody } = input;
-            return { flow: `if (${condition ?? "false"}) {${tBody ?? ""}} else {${fBody ?? ""}}` };
+            const { cond, tBody, fBody } = input;
+            return {
+                flow: {
+                    globals: {
+                        ...unpack(cond, tBody, fBody)
+                    },
+                    script: `\nif (${cond?.script ?? "false"}) {${tBody?.script ?? ""}} else {${fBody?.script ?? ""}}`
+                }
+            };
         });
 
         nodeBuilder.addInput("Ripple boolean", "cond", "Condition");
@@ -90,19 +109,30 @@ const nodes = {
             label: "Count",
             defaultValue: 1,
             triggerUpdate: true,
-        }, { min: 0, step: 1 } );
+        }, { min: 0, step: 1 });
 
         nodeBuilder.setUI(ui);
 
         nodeBuilder.define(async (input, uiInput, from) => {
             const { body, iters, counter } = input;
             const { count } = uiInput;
-            const i = counter?.data?.id ?? id();
 
+            const customCounter = counter?.id != null;
+            const i = counter?.id ?? getId();
+
+            const bodyVars = body?.globals?.vars ?? {};
             // TODO: Make flow into object
             // This will have to keep track of variables globally
 
-            return { flow: `for (${counter?.data?.id ?? "let " + i} = 0; ${i} < ${iters ?? count}; ${i}++) {${body ?? ""}}` };
+            return {
+                flow: {
+                    globals: {
+                        types: {},
+                        vars: customCounter ? { [i]: counter, ...bodyVars } : bodyVars,
+                    },
+                    script: `\nfor (${counter?.id ?? "let " + i} = 0; ${i} < ${iters ?? count}; ${i}++) {${body?.script ?? ""}}`
+                }
+            };
         });
 
         nodeBuilder.addInput("Ripple flow", "body", "Body");
@@ -128,7 +158,15 @@ const nodes = {
             const { message } = uiInput;
             const { content, nextFlow } = input;
 
-            return { flow: `log(${content ?? JSON.stringify(message)});\n${nextFlow ?? ""}` };
+            return {
+                flow: {
+                    globals: {
+                        types: {},
+                        vars: nextFlow?.globals?.vars ?? {},
+                    },
+                    script: `\nlog(${content ?? JSON.stringify(message)});\n${nextFlow?.script ?? ""}`
+                }
+            };
         });
 
         nodeBuilder.setDescription("Log an output");
@@ -141,6 +179,75 @@ const nodes = {
         const nodeBuilder = context.instantiate("Ripple/Input", "type");
         nodeBuilder.setTitle("Create Type");
         nodeBuilder.setDescription("Create a Ripple type");
+    },
+    "compare": (context) => {
+        const nodeBuilder = context.instantiate("Ripple/Functions", "compare");
+        nodeBuilder.setTitle("Compare");
+        nodeBuilder.setDescription("Compare two Ripple numbers");
+
+        const ui = nodeBuilder.createUIBuilder();
+        ui.addDropdown({
+            componentId: "op",
+            label: "Operation",
+            defaultValue: ">",
+            triggerUpdate: true,
+        }, {
+          options: {
+            ">": ">",
+            "≥": ">=",
+            "<": "<",
+            "≤": "<=",
+            "=": "=",
+          }
+        });
+
+        nodeBuilder.setUI(ui);
+
+        nodeBuilder.define((input, uiInput, from) => {
+            const { op } = uiInput;
+            const { varA, varB } = input;
+
+            let script;
+            switch (op) {
+                case ">":  script = `(${varA.id} > ${varB.id})`; break;
+                case ">=": script = `(${varA.id} >= ${varB.id})`; break;
+                case "<":  script = `(${varA.id} < ${varB.id})`; break;
+                case "<=": script = `(${varA.id} <= ${varB.id})`; break;
+                case "=":  script = `(${varA.id} === ${varB.id})`;
+            };
+
+            return {
+                res: {
+                    globals: {
+                        types: {},
+                        vars: {
+                            [varA?.id]: varA,
+                            [varB?.id]: varB
+                        },
+                    },
+                    script
+                }
+            }
+        });
+
+        nodeBuilder.addInput("Ripple var", "varA", "Var A");
+        nodeBuilder.addInput("Ripple var", "varB", "Var B");
+        nodeBuilder.addOutput("Ripple boolean", "res", "Res");
+    },
+    "concat": (context) => {
+        const nodeBuilder = context.instantiate("Ripple/Functions", "concat");
+        nodeBuilder.setTitle("Concat");
+        nodeBuilder.setDescription("Concatenate two Ripple strings");
+
+        nodeBuilder.define(async (input, uiInput, from) => {
+            const { strA, strB } = input;
+
+            return { res: strA + strB };
+        });
+
+        nodeBuilder.addInput("Ripple string", "strA", "String A");
+        nodeBuilder.addInput("Ripple string", "strB", "String B");
+        nodeBuilder.addOutput("Ripple string", "res", "Res");
     },
     "instantiate": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Input", "instantiate");
@@ -156,11 +263,37 @@ const nodes = {
 
         nodeBuilder.define(async (input, uiInput, from) => {
             const { startFlow, tickFlow, endFlow } = input;
+            const flows = [
+                { flow: startFlow, event: "onStart" },
+                { flow: tickFlow,  event: "onTick" },
+                { flow: endFlow,   event: "onEnd" }
+            ].filter((x) => x.flow != null);
+
+            let program = "";
+
+            for (const f of flows) {
+                const globals = f.flow?.globals;
+                if (!globals) continue;
+
+                // Create global types
+                // TODO
+
+                // Create global vars
+                if (globals.vars) {
+                    for (const [id, varData] of Object.entries(globals.vars)) {
+                        program += `let ${id} = ${varData.value};\n`;
+                    }
+                }
+            }
+            
+            program += "\nreturn {";
+            for (const f of flows) {
+                program += `\n${f.event}: () => {${f.flow.script}},`;
+            }
+            program += "\n};";
+
             return {
-                program:
-                    (startFlow == null ? "" : `const onStart = () => { ${startFlow} };`) +
-                    (tickFlow == null ? "" :  `const onTick  = () => { ${tickFlow} };`) +
-                    (endFlow == null ? "" :   `const onEnd   = () => { ${endFlow} };`)
+                program
             };
         });
 
@@ -189,9 +322,10 @@ function init(context) {
     const stringConfigurator = (data) => ({
         displayType: "textbox",
         props: {
-            content: null
+            content: JSON.stringify(data, null, 2),
+            align: "left"
         },
-        contentProp: "content",
+        contentProp: null
     });
 
     const programTypeBuilder = context.createTypeclassBuilder("Ripple program");
