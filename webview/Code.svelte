@@ -1,8 +1,6 @@
 <script lang="ts">
   export let script = "";
-  export let log: (msg: string | null) => void = () => {};
 </script>
-
 
 <code>
     {script}
@@ -11,5 +9,6 @@
 <style>
     code {
         color: grey;
+        padding: 1em;
     }
 </style>

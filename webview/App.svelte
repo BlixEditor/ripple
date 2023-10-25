@@ -12,15 +12,12 @@
             name: "3D",
             icon: ""
         },
-        "code1": {},
-        "code2": {},
-        "code3": {},
         "code": {
             name: "Code",
             icon: ""
         }
     };
-    let selectedTab = "code";
+    let selectedTab = "3d";
 
     $: reload($media);
 
@@ -56,13 +53,12 @@
         <BlankScene />
         {/if}
     </Canvas>
+    <code><br />Log:<br />{#each logData as str}- {str}<br />{/each}</code>
     {:else if selectedTab == "code"}
     <Code script={$media} />
     {/if}
     {/key}
 </div>
-
-<code>Media:<br />{$media}<br /><br />Log:<br />{#each logData as str} {str}<br />{/each}</code>
 
 <style>
     .container {
