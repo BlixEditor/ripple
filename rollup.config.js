@@ -7,7 +7,8 @@ import livereload from 'rollup-plugin-livereload';
 import css from 'rollup-plugin-css-only';
 import nodePolyfills from 'rollup-plugin-node-polyfills';
 import sveltePreprocess from 'svelte-preprocess';
-import typescript from '@rollup/plugin-typescript';
+import ts from '@rollup/plugin-typescript';
+import typescript from 'typescript';
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -64,10 +65,11 @@ export default {
 			exportConditions: ['svelte']
 		}),
 
-		typescript({
+		ts({
 			tsconfig: './tsconfig.json',
 			sourceMap: !production,
 			inlineSources: !production,
+			typescript
 			// compilerOptions: {
 			// 	noUnusedLocals: false
 			// }
@@ -102,3 +104,52 @@ export default {
 		clearScreen: false
 	}
 };
+
+// import ts from "@rollup/plugin-typescript";
+// import typescript from 'typescript';
+
+// import commonjs from "@rollup/plugin-commonjs";
+// import resolve from "@rollup/plugin-node-resolve";
+// import svelte from "rollup-plugin-svelte";
+// import serve from "rollup-plugin-serve";
+// // import terser from "rollup-plugin-terser";
+// import livereload from "rollup-plugin-livereload";
+// import sveltePreprocessor from "svelte-preprocess";
+
+// const isDevelopment = process.env.NODE_ENV === "development";
+
+// const plugins = [
+// 	svelte({
+// 		dev: isDevelopment,
+// 		extensions: [".svelte"],
+// 		preprocess: sveltePreprocessor(),
+// 		emitCss: true,
+// 	}),
+// 	ts({ typescript }),
+// 	commonjs({ include: "node_modules/**", extensions: [".js", ".ts"] }),
+// 	resolve(),
+// ];
+// plugins.push(
+// 	serve({
+// 		contentBase: "./dist",
+// 		open: false,
+// 	}),
+// 	livereload({ watch: "./dist" })
+// );
+
+// export default {
+// 	// input: "src/index.ts",
+// 	// output: {
+// 	// 	file: "dist/index.js",
+// 	// 	sourcemap: true,
+// 	// 	format: "iife",
+// 	// },
+// 	input: 'webview/app.ts',
+// 	output: {
+// 		sourcemap: true,
+// 		format: 'iife',
+// 		name: 'app',
+// 		file: 'dist/bundle.js'
+// 	},
+// 	plugins,
+// };
