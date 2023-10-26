@@ -25,26 +25,32 @@ function unpack() {
 }
 
 const nodes = {
-    //========== LOGIC NODES ==========//
+    // Input Nodes
     "var": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Input", "var");
         nodeBuilder.setTitle("Var");
-        nodeBuilder.setDescription("Define a variable");
+        nodeBuilder.setDescription("Define a var");
 
         const ui = nodeBuilder.createUIBuilder();
-        ui.addTextInput({
-            componentId: "name",
-            label: "Name",
-            defaultValue: "var",
+        ui.addDropdown({
+            componentId: "type",
+            label: "Type",
+            defaultValue: "string",
             triggerUpdate: true,
-        }, { multiline: false });
+        }, {
+          options: {
+            "string": "string",
+            "number": "number",
+            "boolean": "boolean",
+          }
+        });
 
-        ui.addNumberInput({
+        ui.addTextInput({
             componentId: "value",
             label: "Value",
-            defaultValue: 0,
+            defaultValue: "string",
             triggerUpdate: true,
-        }, {});
+        }, { multiline: false });
 
         ui.addBuffer({
             componentId: "id",
@@ -65,17 +71,50 @@ const nodes = {
         nodeBuilder.define(async (input, uiInput, from) => {
             // `name` is just used for debug output
             // `id` is the actual variable name
-            const { id, name, value } = uiInput;
+            const { id, name, value, type } = uiInput;
+            switch(type){
+                case "string": return { var: {id, value: `"${value}"` } };
+                default: return { var: { id, value } };
+            }
+        });
 
-            return {
-                var: { id, name, value },
-                value
+        nodeBuilder.addOutput("Ripple var", "var", "Var");
+        // nodeBuilder.addOutput("Ripple string", "value", "Value");
+    },
+    "reference": (context) => {
+        const nodeBuilder = context.instantiate("Ripple/Input", "reference");
+        nodeBuilder.setTitle("Reference");
+        nodeBuilder.setDescription("References a var");
+
+        const ui = nodeBuilder.createUIBuilder();
+        ui.addTextInput({
+            componentId: "name",
+            label: "Name",
+            defaultValue: "var",
+            triggerUpdate: true,
+        }, { multiline: false });
+        // ui.addTweakDial("tweaks", {});
+
+        nodeBuilder.setUI(ui);
+
+        nodeBuilder.setUIInitializer((x) => {
+            const id = getId();
+            return { id, name: id.slice(1) };
+        });
+
+        nodeBuilder.define(async (input, uiInput, from) => {
+            // `name` is just used for debug output
+            // `id` is the actual variable name
+            const { name } = uiInput;
+            return { 
+                var: { id: name } 
             };
         });
 
         nodeBuilder.addOutput("Ripple var", "var", "Var");
-        nodeBuilder.addOutput("Ripple number", "value", "Value");
+        // nodeBuilder.addOutput("Ripple string", "value", "Value");
     },
+    // Control nodes
     "if": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Control", "if");
         nodeBuilder.setTitle("If");
@@ -140,6 +179,7 @@ const nodes = {
         nodeBuilder.addInput("Ripple var", "counter", "Counter");
         nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
     },
+    //Output nodes
     "log": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Output", "log");
         nodeBuilder.setTitle("Log");
@@ -157,29 +197,30 @@ const nodes = {
         nodeBuilder.define(async (input, uiInput, from) => {
             const { message } = uiInput;
             const { content, nextFlow } = input;
-
             return {
                 flow: {
                     globals: {
                         types: {},
                         vars: nextFlow?.globals?.vars ?? {},
                     },
-                    script: `\nlog(${content ?? JSON.stringify(message)});\n${nextFlow?.script ?? ""}`
+                    script: `\nlog(${content?.value ?? JSON.stringify(message)});\n${nextFlow?.script ?? ""}`
                 }
             };
         });
 
         nodeBuilder.setDescription("Log an output");
 
-        nodeBuilder.addInput("Ripple string", "content", "content");
+        nodeBuilder.addInput("Ripple var", "content", "content");
         nodeBuilder.addInput("Ripple flow", "nextFlow", "Next Flow");
         nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
     },
+    //Functions
     "type": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Input", "type");
         nodeBuilder.setTitle("Create Type");
         nodeBuilder.setDescription("Create a Ripple type");
     },
+        //Var functions
     "compare": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Functions", "compare");
         nodeBuilder.setTitle("Compare");
@@ -234,6 +275,7 @@ const nodes = {
         nodeBuilder.addInput("Ripple var", "varB", "Var B");
         nodeBuilder.addOutput("Ripple boolean", "res", "Res");
     },
+        // String functions
     "concat": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Functions", "concat");
         nodeBuilder.setTitle("Concat");
@@ -242,17 +284,201 @@ const nodes = {
         nodeBuilder.define(async (input, uiInput, from) => {
             const { strA, strB } = input;
 
-            return { res: strA + strB };
+            return { res: `"${strA.replaceAll('"', '') + strB.replaceAll('"', '')}"` };
         });
 
-        nodeBuilder.addInput("Ripple string", "strA", "String A");
-        nodeBuilder.addInput("Ripple string", "strB", "String B");
-        nodeBuilder.addOutput("Ripple string", "res", "Res");
+        nodeBuilder.addInput("Ripple var", "strA", "String A");
+        nodeBuilder.addInput("Ripple var", "strB", "String B");
+        nodeBuilder.addOutput("Ripple var", "res", "Res");
     },
+
+        // Logic functions
+    "logic": (context) => {
+        const nodeBuilder = context.instantiate("Ripple/Functions", "logic");
+        nodeBuilder.setTitle("Logic");
+        nodeBuilder.setDescription("Performs a logical operation (AND/OR/XOR) on two inputs and returns a single output");
+      
+        nodeBuilder.define((input, uiInputs, requiredOutputs) => {
+            const { op } = uiInputs;
+            const { boolA, boolB } = input;
+
+            let script;
+            switch (op) {
+                case "and":  script = `(${boolA.id} && ${boolB.id})`; break;
+                case "or": script = `(${boolA.id} || ${boolB.id})`; break;
+                case "xor":  script = `(${boolA.id} !== ${boolB.id})`;
+            };
+
+            return {res: {
+                    globals: {
+                        types: {},
+                        vars: {
+                            [boolA?.id]: boolA,
+                            [boolB?.id]: boolB
+                        },
+                    },
+                    script
+                }
+            };
+        });
+
+        const ui = nodeBuilder.createUIBuilder();
+        ui.addDropdown({
+            componentId: "op",
+            label: "Operation",
+            defaultValue: 0,
+            triggerUpdate: true,
+        }, {
+          options: {
+            "And": "and",
+            "Or": "or",
+            "Xor": "xor",
+          }
+        });
+
+        nodeBuilder.setUI(ui);
+      
+        nodeBuilder.addInput("Ripple var", "boolA", "A");
+        nodeBuilder.addInput("Ripple var", "boolB", "B");
+        nodeBuilder.addOutput("Ripple boolean", "res", "Result");
+      },
+      // Math functions
+    "binary": (context) => {
+        // TODO
+        const nodeBuilder = context.instantiate("Ripple/Functions", "binary");
+        nodeBuilder.setTitle("Binary Math");
+        nodeBuilder.setDescription("Performs Binary math operations taking two number inputs and returning one number output");
+      
+        nodeBuilder.define((input, uiInput, requiredOutputs) => {
+        
+            const { op } = uiInput;
+            const { num1, num2 } = input;
+
+            switch (op) {
+                case "add": return { res: num1 + num2             }
+                case "subtract": return { res: num1 - num2        }
+                case "multiply": return { res: num1 * num2        }
+                case "divide": return { res: num2 === 0 ? 0 : num1 / num2 }
+                case "power": return { res: Math.pow(num1, num2)  }
+                case "modulo": return { res: num1 % num2          }
+                case "max": return { res: Math.max(num1, num2)    }
+                case "min": return { res: Math.min(num1, num2)    }
+            }
+        });
+
+        const ui = nodeBuilder.createUIBuilder();
+        ui.addDropdown({
+            componentId: "operator",
+            label: "Operator",
+            defaultValue: "add",
+            updateBackend: true,
+        }, {
+          options: {
+            "Add": "add",
+            "Subtract": "subtract",
+            "Multiply": "multiply",
+            "Divide": "divide",
+            "Power": "power",
+            "Modulo": "modulo",
+            "Max": "max",
+            "Min": "min"
+          }
+        });
+
+        nodeBuilder.setUI(ui);
+      
+        nodeBuilder.addInput("Ripple number", "num1", "Num1");
+        nodeBuilder.addInput("Ripple number", "num2", "Num2");
+        nodeBuilder.addOutput("Ripple number", "res", "Result");
+      },
     "instantiate": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Input", "instantiate");
         nodeBuilder.setTitle("Instantiate");
         nodeBuilder.setDescription("Instantiate a Ripple type");
+    },
+
+    "assign": (context) => {
+        const nodeBuilder = context.instantiate("Ripple/Input", "assign");
+        nodeBuilder.setTitle("Assign");
+
+        const ui = nodeBuilder.createUIBuilder();
+        ui.addDropdown({
+            componentId: "type",
+            label: "Type",
+            defaultValue: "string",
+            triggerUpdate: true,
+        }, {
+          options: {
+            "string": "string",
+            "number": "number",
+            "boolean": "boolean",
+          }
+        });
+
+        ui.addTextInput({
+            componentId: "name",
+            label: "Name",
+            defaultValue: "var",
+            triggerUpdate: true,
+        }, { multiline: false });
+
+        ui.addTextInput({
+            componentId: "value",
+            label: "Value",
+            defaultValue: "string",
+            triggerUpdate: true,
+        }, { multiline: false });
+
+        ui.addBuffer({
+            componentId: "id",
+            label: "Id",
+            defaultValue: { id: null },
+            triggerUpdate: true,
+        }, {});
+
+        nodeBuilder.setUI(ui);
+
+        nodeBuilder.setUIInitializer((x) => {
+            const id = getId();
+            return { id, name: id.slice(1) };
+        });
+
+        nodeBuilder.define(async (input, uiInput, from) => {
+            const { id, value, type } = uiInput;
+            const { content, nextFlow } = input;
+            const vars = nextFlow?.globals?.vars ?? {};
+
+            switch (type){
+                case "string": 
+                    vars[id] = {id, value: `"${value}"`};
+                    return {
+                        flow: {
+                            globals: {
+                                types: {},
+                                vars
+                            },
+                            script: `\n${nextFlow?.script ?? ""}`
+                    }
+                }
+                default: 
+                    vars[id] = {id, value};
+                    return {
+                        flow: {
+                            globals: {
+                                types: {},
+                                vars
+                            },
+                            script: `\n${nextFlow?.script ?? ""}`
+                    }
+                }
+            }
+        });
+
+        nodeBuilder.setDescription("Log an output");
+
+        nodeBuilder.addInput("Ripple var", "content", "content");
+        nodeBuilder.addInput("Ripple flow", "nextFlow", "Next Flow");
+        nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
     },
     "program": (context) => {
         const nodeBuilder = context.instantiate("Ripple", "program");
