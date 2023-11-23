@@ -24,6 +24,18 @@ function unpack() {
     return { types, vars };
 }
 
+// Format a string to an atomic Javascript value
+function valToJS(value, type) {
+    switch (type) {
+        case "string":
+            return `"${value}"`;
+        case "number":
+            return `${parseFloat(value, 10) || "0"}`;
+        case "boolean":
+            return ["1", "t", "y", "true", "yes", "on"].includes(value.toLowerCase()) ? "true" : "false";
+    }
+}
+
 const nodes = {
     // Input Nodes
     "var": (context) => {
@@ -32,6 +44,13 @@ const nodes = {
         nodeBuilder.setDescription("Define a var");
 
         const ui = nodeBuilder.createUIBuilder();
+        ui.addTextInput({
+            componentId: "name",
+            label: "Name",
+            defaultValue: "string",
+            triggerUpdate: false,
+        }, { multiline: false });
+
         ui.addDropdown({
             componentId: "type",
             label: "Type",
@@ -79,40 +98,6 @@ const nodes = {
         });
 
         nodeBuilder.addOutput("Ripple var", "var", "Var");
-        // nodeBuilder.addOutput("Ripple string", "value", "Value");
-    },
-    "reference": (context) => {
-        const nodeBuilder = context.instantiate("Ripple/Input", "reference");
-        nodeBuilder.setTitle("Reference");
-        nodeBuilder.setDescription("References a var");
-
-        const ui = nodeBuilder.createUIBuilder();
-        ui.addTextInput({
-            componentId: "name",
-            label: "Name",
-            defaultValue: "var",
-            triggerUpdate: true,
-        }, { multiline: false });
-        // ui.addTweakDial("tweaks", {});
-
-        nodeBuilder.setUI(ui);
-
-        nodeBuilder.setUIInitializer((x) => {
-            const id = getId();
-            return { id, name: id.slice(1) };
-        });
-
-        nodeBuilder.define(async (input, uiInput, from) => {
-            // `name` is just used for debug output
-            // `id` is the actual variable name
-            const { name } = uiInput;
-            return { 
-                var: { id: name } 
-            };
-        });
-
-        nodeBuilder.addOutput("Ripple var", "var", "Var");
-        // nodeBuilder.addOutput("Ripple string", "value", "Value");
     },
     // Control nodes
     "if": (context) => {
@@ -132,7 +117,7 @@ const nodes = {
             };
         });
 
-        nodeBuilder.addInput("Ripple boolean", "cond", "Condition");
+        nodeBuilder.addInput("Ripple var", "cond", "Condition");
         nodeBuilder.addInput("Ripple flow", "tBody", "True Body");
         nodeBuilder.addInput("Ripple flow", "fBody", "False Body");
         nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
@@ -175,7 +160,7 @@ const nodes = {
         });
 
         nodeBuilder.addInput("Ripple flow", "body", "Body");
-        nodeBuilder.addInput("Ripple number", "iters", "Iterations");
+        nodeBuilder.addInput("Ripple var", "iters", "Iterations");
         nodeBuilder.addInput("Ripple var", "counter", "Counter");
         nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
     },
@@ -203,7 +188,7 @@ const nodes = {
                         types: {},
                         vars: nextFlow?.globals?.vars ?? {},
                     },
-                    script: `\nlog(${content?.value ?? JSON.stringify(message)});\n${nextFlow?.script ?? ""}`
+                    script: `\nlog(${JSON.stringify(message) + (content?.id != null ? ` + ": " + JSON.stringify(${content.id})` : '')});\n${nextFlow?.script ?? ''}`
                 }
             };
         });
@@ -273,7 +258,7 @@ const nodes = {
 
         nodeBuilder.addInput("Ripple var", "varA", "Var A");
         nodeBuilder.addInput("Ripple var", "varB", "Var B");
-        nodeBuilder.addOutput("Ripple boolean", "res", "Res");
+        nodeBuilder.addOutput("Ripple var", "res", "Res");
     },
         // String functions
     "concat": (context) => {
@@ -326,7 +311,7 @@ const nodes = {
         ui.addDropdown({
             componentId: "op",
             label: "Operation",
-            defaultValue: 0,
+            defaultValue: "and",
             triggerUpdate: true,
         }, {
           options: {
@@ -340,7 +325,7 @@ const nodes = {
       
         nodeBuilder.addInput("Ripple var", "boolA", "A");
         nodeBuilder.addInput("Ripple var", "boolB", "B");
-        nodeBuilder.addOutput("Ripple boolean", "res", "Result");
+        nodeBuilder.addOutput("Ripple var", "res", "Result");
       },
       // Math functions
     "binary": (context) => {
@@ -387,9 +372,9 @@ const nodes = {
 
         nodeBuilder.setUI(ui);
       
-        nodeBuilder.addInput("Ripple number", "num1", "Num1");
-        nodeBuilder.addInput("Ripple number", "num2", "Num2");
-        nodeBuilder.addOutput("Ripple number", "res", "Result");
+        nodeBuilder.addInput("Ripple var", "num1", "Num1");
+        nodeBuilder.addInput("Ripple var", "num2", "Num2");
+        nodeBuilder.addOutput("Ripple var", "res", "Result");
       },
     "instantiate": (context) => {
         const nodeBuilder = context.instantiate("Ripple/Input", "instantiate");
@@ -398,7 +383,8 @@ const nodes = {
     },
 
     "assign": (context) => {
-        const nodeBuilder = context.instantiate("Ripple/Input", "assign");
+
+        const nodeBuilder = context.instantiate("Ripple/Control", "assign");
         nodeBuilder.setTitle("Assign");
 
         const ui = nodeBuilder.createUIBuilder();
@@ -416,25 +402,11 @@ const nodes = {
         });
 
         ui.addTextInput({
-            componentId: "name",
-            label: "Name",
-            defaultValue: "var",
-            triggerUpdate: true,
-        }, { multiline: false });
-
-        ui.addTextInput({
             componentId: "value",
             label: "Value",
-            defaultValue: "string",
+            defaultValue: "",
             triggerUpdate: true,
         }, { multiline: false });
-
-        ui.addBuffer({
-            componentId: "id",
-            label: "Id",
-            defaultValue: { id: null },
-            triggerUpdate: true,
-        }, {});
 
         nodeBuilder.setUI(ui);
 
@@ -444,38 +416,28 @@ const nodes = {
         });
 
         nodeBuilder.define(async (input, uiInput, from) => {
+            const { message } = uiInput;
+            const { content, nextFlow } = input;
+            return {
+                flow: {
+                    globals: {
+                        types: {},
+                        vars: nextFlow?.globals?.vars ?? {},
+                    },
+                    script: `\nlog(${JSON.stringify(message) + (content?.value != null ? ` + ": " + JSON.stringify(${content.value})` : '')});\n${nextFlow?.script ?? ''}`
+                }
+            };
+        });
+
+        nodeBuilder.define(async (input, uiInput, from) => {
             const { id, value, type } = uiInput;
             const { content, nextFlow } = input;
             const vars = nextFlow?.globals?.vars ?? {};
-
-            switch (type){
-                case "string": 
-                    vars[id] = {id, value: `"${value}"`};
-                    return {
-                        flow: {
-                            globals: {
-                                types: {},
-                                vars
-                            },
-                            script: `\n${nextFlow?.script ?? ""}`
-                    }
-                }
-                default: 
-                    vars[id] = {id, value};
-                    return {
-                        flow: {
-                            globals: {
-                                types: {},
-                                vars
-                            },
-                            script: `\n${nextFlow?.script ?? ""}`
-                    }
-                }
-            }
         });
 
         nodeBuilder.setDescription("Log an output");
 
+        nodeBuilder.addInput("Ripple var", "content", "content");
         nodeBuilder.addInput("Ripple var", "content", "content");
         nodeBuilder.addInput("Ripple flow", "nextFlow", "Next Flow");
         nodeBuilder.addOutput("Ripple flow", "flow", "Flow");
@@ -582,14 +544,14 @@ function init(context) {
     const termTypeBuilder = context.createTypeclassBuilder("Ripple term");
     termTypeBuilder.setDisplayConfigurator(stringConfigurator);
 
-    const termBooleanTypeBuilder = context.createTypeclassBuilder("Ripple boolean");
-    termBooleanTypeBuilder.setDisplayConfigurator(stringConfigurator);
+    // const termBooleanTypeBuilder = context.createTypeclassBuilder("Ripple boolean");
+    // termBooleanTypeBuilder.setDisplayConfigurator(stringConfigurator);
 
-    const termNumberTypeBuilder = context.createTypeclassBuilder("Ripple number");
-    termNumberTypeBuilder.setDisplayConfigurator(stringConfigurator);
+    // const termNumberTypeBuilder = context.createTypeclassBuilder("Ripple number");
+    // termNumberTypeBuilder.setDisplayConfigurator(stringConfigurator);
 
-    const termStringTypeBuilder = context.createTypeclassBuilder("Ripple string");
-    termStringTypeBuilder.setDisplayConfigurator(stringConfigurator);
+    // const termStringTypeBuilder = context.createTypeclassBuilder("Ripple string");
+    // termStringTypeBuilder.setDisplayConfigurator(stringConfigurator);
 
 }
 
